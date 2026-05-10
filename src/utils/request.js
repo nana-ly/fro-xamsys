@@ -1,58 +1,56 @@
+// src/utils/request.js
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 
-const service = axios.create({
-    baseURL: process.env.VUE_APP_API_BASE_URL || '/api',
-    timeout: 10000
+const request = axios.create({
+    baseURL: 'http://127.0.0.1:8000',  // 根地址
+    timeout: 10000,
+    withCredentials: true  // ← 关键！携带 Cookie
 })
 
-// 请求拦截器
-service.interceptors.request.use(
+// 请求拦截器：自动带 CSRF Token
+request.interceptors.request.use(
     config => {
-        const token = localStorage.getItem('token')
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`
+        const csrfToken = getCookie('csrftoken')
+        if (csrfToken) {
+            config.headers['X-CSRFToken'] = csrfToken
         }
         return config
     },
-    error => {
-        return Promise.reject(error)
-    }
+    error => Promise.reject(error)
 )
 
 // 响应拦截器
-service.interceptors.response.use(
-    response => {
-        return response.data
-    },
+request.interceptors.response.use(
+    response => response.data,
     error => {
         if (error.response) {
             switch (error.response.status) {
                 case 401:
-                    // Token过期或未登录
-                    ElMessage.error('登录已过期，请重新登录')
-                    localStorage.removeItem('token')
-                    localStorage.removeItem('userInfo')
+                    ElMessage.error('请先登录')
                     router.push('/login')
                     break
                 case 403:
-                    ElMessage.error('没有权限访问')
-                    break
-                case 404:
-                    ElMessage.error('请求的资源不存在')
+                    ElMessage.error('权限不足')
                     break
                 case 500:
                     ElMessage.error('服务器错误')
                     break
                 default:
-                    ElMessage.error(error.response.data.message || '请求失败')
+                    ElMessage.error(error.response.data?.message || '请求失败')
             }
-        } else {
-            ElMessage.error('网络错误，请检查网络连接')
         }
         return Promise.reject(error)
     }
 )
 
-export default service
+// 从 Cookie 中取值
+function getCookie(name) {
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+    if (parts.length === 2) return parts.pop().split(';').shift()
+    return null
+}
+
+export default request
