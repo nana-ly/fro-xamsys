@@ -158,6 +158,7 @@ const handleRegister = async () => {
       real_name: registerForm.realName,
       school: registerForm.school,
       password: registerForm.password,
+      password_confirm: registerForm.confirmPassword,
       role: 'teacher' // 教师角色
     })
 

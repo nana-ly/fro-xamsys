@@ -8,7 +8,8 @@ const routes = [
     {
         path: '/login',
         name: 'Login',
-        component: () => import('@/views/teacher/Login.vue')
+        component: () => import('@/views/teacher/Login.vue'),
+        meta: { noAuth: true }
     },
     {
         path: '/register',

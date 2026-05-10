@@ -433,7 +433,7 @@ const disabledDate = (time) => {
 const fetchClassList = async () => {
   try {
     const res = await getClassList()
-    classList.value = res.data
+    classList.value = res.results || res
   } catch (error) {
     ElMessage.error('获取班级列表失败')
   }
@@ -447,7 +447,7 @@ const fetchBankQuestions = async () => {
       difficulty: filterForm.difficulty,
       page_size: 100
     })
-    bankQuestions.value = res.data.results
+    bankQuestions.value = res.results
   } catch (error) {
     ElMessage.error('获取题库失败')
   }
@@ -509,7 +509,7 @@ const confirmAutoGenerate = async () => {
       difficulty_ratio: autoForm.difficultyRatio
     })
 
-    selectedQuestions.value = res.data.questions
+    selectedQuestions.value = res.questions
     autoDialogVisible.value = false
     calculateTotalScore()
     ElMessage.success('智能组卷成功')
@@ -605,8 +605,8 @@ onMounted(async () => {
 
     try {
       const res = await getExamDetail(editId.value)
-      Object.assign(examForm, res.data)
-      selectedQuestions.value = res.data.questions
+      Object.assign(examForm, res)
+      selectedQuestions.value = res.questions
     } catch (error) {
       ElMessage.error('获取试卷详情失败')
     }

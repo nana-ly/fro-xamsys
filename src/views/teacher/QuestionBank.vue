@@ -317,8 +317,8 @@ const fetchQuestionList = async () => {
       difficulty: searchForm.difficulty
     })
 
-    questionList.value = res.data.results
-    pagination.total = res.data.count
+    questionList.value = res.results
+    pagination.total = res.count
 
   } catch (error) {
     ElMessage.error('获取题目列表失败')

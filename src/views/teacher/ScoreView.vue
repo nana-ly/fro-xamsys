@@ -12,7 +12,7 @@
               v-model="filterForm.classId"
               placeholder="全部班级"
               @change="handleClassChange">
-            <el-option label="全部班级" :value="null" />
+            <el-option label="全部班级" value="" />
             <el-option
                 v-for="cls in classList"
                 :key="cls.id"
@@ -338,7 +338,7 @@ const chartData = reactive({
 const fetchClassList = async () => {
   try {
     const res = await getClassList()
-    classList.value = res.data
+    classList.value = res.results || res
   } catch (error) {
     ElMessage.error('获取班级列表失败')
   }
@@ -349,7 +349,7 @@ const handleClassChange = async () => {
   if (filterForm.classId) {
     try {
       const res = await getExamList({ class_id: filterForm.classId })
-      examList.value = res.data
+      examList.value = res.results || res
     } catch (error) {
       ElMessage.error('获取试卷列表失败')
     }
@@ -371,8 +371,8 @@ const fetchScoreData = async () => {
       page: pagination.current,
       page_size: pagination.size
     })
-    scoreList.value = scoreRes.data.results
-    pagination.total = scoreRes.data.count
+    scoreList.value = scoreRes.results
+    pagination.total = scoreRes.count
 
     // 获取统计数据
     const statsRes = await getScoreStatistics({
@@ -380,10 +380,10 @@ const fetchScoreData = async () => {
       exam_id: filterForm.examId
     })
 
-    Object.assign(statistics, statsRes.data.statistics)
-    chartData.distribution = statsRes.data.distribution
-    chartData.accuracy = statsRes.data.accuracy
-    chartData.trend = statsRes.data.trend
+    Object.assign(statistics, statsRes.statistics)
+    chartData.distribution = statsRes.distribution
+    chartData.accuracy = statsRes.accuracy
+    chartData.trend = statsRes.trend
 
   } catch (error) {
     ElMessage.error('获取成绩数据失败')
@@ -407,7 +407,7 @@ const handleCurrentChange = (page) => {
 const viewDetail = async (row) => {
   try {
     const res = await getScoreDetail(row.id)
-    scoreDetail.value = res.data
+    scoreDetail.value = res
     detailDialogVisible.value = true
   } catch (error) {
     ElMessage.error('获取详情失败')

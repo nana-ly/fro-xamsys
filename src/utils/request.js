@@ -4,17 +4,17 @@ import { ElMessage } from 'element-plus'
 import router from '@/router'
 
 const request = axios.create({
-    baseURL: 'http://127.0.0.1:8000',  // 根地址
+    baseURL: '/api',
     timeout: 10000,
-    withCredentials: true  // ← 关键！携带 Cookie
+    withCredentials: true
 })
 
-// 请求拦截器：自动带 CSRF Token
+// 请求拦截器：从 localStorage 读 CSRF Token
 request.interceptors.request.use(
     config => {
-        const csrfToken = getCookie('csrftoken')
-        if (csrfToken) {
-            config.headers['X-CSRFToken'] = csrfToken
+        const token = localStorage.getItem('csrfToken')
+        if (token) {
+            config.headers['X-CSRFToken'] = token
         }
         return config
     },
@@ -44,13 +44,5 @@ request.interceptors.response.use(
         return Promise.reject(error)
     }
 )
-
-// 从 Cookie 中取值
-function getCookie(name) {
-    const value = `; ${document.cookie}`
-    const parts = value.split(`; ${name}=`)
-    if (parts.length === 2) return parts.pop().split(';').shift()
-    return null
-}
 
 export default request

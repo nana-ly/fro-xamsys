@@ -251,7 +251,7 @@ const classRules = {
 const fetchClassList = async () => {
   try {
     const res = await getClassList()
-    classList.value = res.data
+    classList.value = res.results || res
   } catch (error) {
     ElMessage.error('获取班级列表失败')
   }
@@ -349,7 +349,7 @@ const viewStudents = async (classId) => {
   studentLoading.value = true
   try {
     const res = await getClassStudents(classId)
-    studentList.value = res.data
+    studentList.value = res.results || res
   } catch (error) {
     ElMessage.error('获取学生列表失败')
   } finally {
@@ -380,7 +380,7 @@ const searchStudents = async () => {
       keyword: studentSearchKeyword.value,
       exclude_class: currentClassId.value
     })
-    searchResults.value = res.data
+    searchResults.value = res.results || res
   } catch (error) {
     ElMessage.error('搜索失败')
   }
