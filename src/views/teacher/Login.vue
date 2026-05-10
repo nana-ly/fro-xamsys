@@ -106,7 +106,6 @@ const handleLogin = async () => {
 
     // 保存用户信息
     localStorage.setItem('userInfo', JSON.stringify(res.user))
-    // 保存 CSRF Token，后续 POST/PUT/DELETE 需要
     if (res.csrfToken) {
       localStorage.setItem('csrfToken', res.csrfToken)
     }

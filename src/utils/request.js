@@ -27,7 +27,6 @@ function extractError(data) {
     if (typeof data === 'string') return data
     if (data.message) return data.message
     if (data.detail) return data.detail
-    // 取第一个字段的第一条错误
     for (const key of Object.keys(data)) {
         const val = data[key]
         if (Array.isArray(val) && val.length > 0) {

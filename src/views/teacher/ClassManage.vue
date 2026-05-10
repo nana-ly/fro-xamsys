@@ -128,7 +128,7 @@
             <el-button
                 type="danger"
                 size="small"
-                @click="removeStudent(scope.row.id)">
+                @click="removeStudent(scope.row.student)">
               移除
             </el-button>
           </template>
