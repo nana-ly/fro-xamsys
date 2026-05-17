@@ -41,6 +41,13 @@ export const getQuestionList = (params) => {
     })
 }
 
+export const getQuestionDetail = (id) => {
+    return request({
+        url: `/question-bank/${id}/`,
+        method: 'get'
+    })
+}
+
 export const addQuestion = (data) => {
     return request({
         url: '/question-bank/',
@@ -278,5 +285,14 @@ export const exportScores = (params) => {
         method: 'get',
         params,
         responseType: 'blob'
+    })
+}
+
+// ========== AI 智能出题 ==========
+export const aiGenerateQuestion = (data) => {
+    return request({
+        url: '/student/ai/generate_question/',
+        method: 'post',
+        data
     })
 }

@@ -495,27 +495,67 @@ const calculateTotalScore = () => {
 
 // 显示智能组卷对话框
 const autoGenerate = () => {
+  if (!examForm.title) {
+    ElMessage.warning('请先填写试卷标题')
+    return
+  }
+  if (!examForm.classIds.length) {
+    ElMessage.warning('请先选择目标班级')
+    return
+  }
   autoDialogVisible.value = true
 }
 
 // 确认智能组卷
 const confirmAutoGenerate = async () => {
   try {
+    // 前端题型名 → 后端数据库值
+    const typeMap = {
+      single: 'choice',
+      multiple: 'multiple_choice',
+      judge: 'true_false',
+      blank: 'fill_blank'
+    }
+    const typeDistribution = {}
+    if (autoForm.singleCount > 0) typeDistribution[typeMap.single] = autoForm.singleCount
+    if (autoForm.multipleCount > 0) typeDistribution[typeMap.multiple] = autoForm.multipleCount
+    if (autoForm.judgeCount > 0) typeDistribution[typeMap.judge] = autoForm.judgeCount
+    if (autoForm.blankCount > 0) typeDistribution[typeMap.blank] = autoForm.blankCount
+
+    if (Object.keys(typeDistribution).length === 0) {
+      ElMessage.warning('请至少设置一种题型数量')
+      return
+    }
+
     const res = await autoGenerateExam({
-      total_count: autoForm.totalCount,
-      type_distribution: {
-        single: autoForm.singleCount,
-        multiple: autoForm.multipleCount,
-        judge: autoForm.judgeCount,
-        blank: autoForm.blankCount
-      },
-      difficulty_ratio: autoForm.difficultyRatio
+      name: examForm.title,
+      target_class: examForm.classIds[0],
+      total_score: examForm.totalScore || 100,
+      duration: examForm.duration || 60,
+      type_distribution: typeDistribution
     })
 
-    selectedQuestions.value = res.questions
+    // 后端已创建试卷和题目，获取题目列表展示
+    const paperId = res.paper?.id
+    if (paperId) {
+      const questionsData = await getExamQuestions(paperId)
+      selectedQuestions.value = (Array.isArray(questionsData) ? questionsData : []).map(pq => ({
+        id: pq.question_detail?.id ?? pq.question,
+        content: pq.question_detail?.content ?? '',
+        type: pq.question_detail?.question_type ?? '',
+        options: pq.question_detail?.options ?? '',
+        answer: pq.question_detail?.answer ?? '',
+        difficulty: pq.question_detail?.difficulty ?? 1,
+        score: pq.score || 5
+      }))
+      // 切换到编辑模式，后续点击"发布试卷"会更新而非重复创建
+      isEdit.value = true
+      editId.value = paperId
+    }
+
     autoDialogVisible.value = false
     calculateTotalScore()
-    ElMessage.success('智能组卷成功')
+    ElMessage.success(`智能组卷成功，已生成${res.question_count}道题目，每题${res.score_per_question}分`)
 
   } catch (error) {
     ElMessage.error('智能组卷失败')

@@ -6,6 +6,9 @@
       <el-button type="primary" icon="Plus" @click="showAddDialog">
         新增题目
       </el-button>
+      <el-button type="success" icon="MagicStick" @click="showAIDialog">
+        AI智能出题
+      </el-button>
     </div>
 
     <!-- 搜索筛选区 -->
@@ -125,11 +128,11 @@
 
         <el-form-item label="题型" prop="type">
           <el-radio-group v-model="questionForm.type">
-            <el-radio label="single">单选题</el-radio>
-            <el-radio label="multiple">多选题</el-radio>
-            <el-radio label="judge">判断题</el-radio>
-            <el-radio label="blank">填空题</el-radio>
-            <el-radio label="essay">简答题</el-radio>
+            <el-radio value="single">单选题</el-radio>
+            <el-radio value="multiple">多选题</el-radio>
+            <el-radio value="judge">判断题</el-radio>
+            <el-radio value="blank">填空题</el-radio>
+            <el-radio value="essay">简答题</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -222,9 +225,9 @@
 
         <el-form-item label="难度" prop="difficulty">
           <el-radio-group v-model="questionForm.difficulty">
-            <el-radio label="easy">简单</el-radio>
-            <el-radio label="medium">中等</el-radio>
-            <el-radio label="hard">困难</el-radio>
+            <el-radio value="easy">简单</el-radio>
+            <el-radio value="medium">中等</el-radio>
+            <el-radio value="hard">困难</el-radio>
           </el-radio-group>
         </el-form-item>
 
@@ -244,6 +247,46 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- AI智能出题对话框 -->
+    <el-dialog
+        v-model="aiDialogVisible"
+        title="AI 智能出题"
+        width="500px">
+
+      <el-form :model="aiForm" label-width="100px">
+        <el-form-item label="知识点" prop="knowledgePoint">
+          <el-input
+              v-model="aiForm.knowledgePoint"
+              placeholder="例如：Python列表推导式、SQL注入原理" />
+        </el-form-item>
+
+        <el-form-item label="题型" prop="questionType">
+          <el-select v-model="aiForm.questionType" placeholder="请选择题型">
+            <el-option label="单选题" value="choice" />
+            <el-option label="判断题" value="true_false" />
+            <el-option label="多选题" value="multiple_choice" />
+            <el-option label="填空题" value="fill_blank" />
+            <el-option label="简答题" value="essay" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="难度" prop="difficulty">
+          <el-radio-group v-model="aiForm.difficulty">
+            <el-radio value="easy">简单</el-radio>
+            <el-radio value="medium">中等</el-radio>
+            <el-radio value="hard">困难</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="aiDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="aiGenerating" @click="handleAIGenerate">
+          开始生成
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -252,9 +295,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getQuestionList,
+  getQuestionDetail,
   addQuestion,
   updateQuestion,
-  deleteQuestion
+  deleteQuestion,
+  aiGenerateQuestion
 } from '@/api/teacher'
 
 // 数据定义
@@ -296,6 +341,15 @@ const questionForm = reactive({
   score: 5
 })
 
+// AI出题
+const aiDialogVisible = ref(false)
+const aiGenerating = ref(false)
+const aiForm = reactive({
+  knowledgePoint: '',
+  questionType: 'choice',
+  difficulty: 'medium'
+})
+
 // 表单验证规则
 const questionRules = {
   type: [{ required: true, message: '请选择题型', trigger: 'change' }],
@@ -317,7 +371,12 @@ const fetchQuestionList = async () => {
       difficulty: searchForm.difficulty
     })
 
-    questionList.value = res.results
+    // 映射后端字段到前端表格期望的字段名
+    questionList.value = (res.results || []).map(q => ({
+      ...q,
+      type: q.question_type || q.type,
+      score: q.score || 5
+    }))
     pagination.total = res.count
 
   } catch (error) {
@@ -361,25 +420,51 @@ const showAddDialog = () => {
   dialogVisible.value = true
 }
 
+// DB类型值 → 前端简称
+const dbTypeToFrontend = (dbType) => {
+  const map = {
+    choice: 'single',
+    multiple_choice: 'multiple',
+    true_false: 'judge',
+    fill_blank: 'blank',
+    essay: 'essay'
+  }
+  return map[dbType] || dbType
+}
+
 // 编辑题目
-const handleEdit = (row) => {
+const handleEdit = async (row) => {
   dialogTitle.value = '编辑题目'
   editingId.value = row.id
-
-  // 填充表单数据
-  questionForm.type = row.type
-  questionForm.content = row.content
-  questionForm.answer = row.answer
-  questionForm.explanation = row.explanation
-  questionForm.difficulty = row.difficulty
-  questionForm.score = row.score
-
-  // 如果是选择题，填充选项
-  if (row.type === 'single' || row.type === 'multiple') {
-    questionForm.options = row.options
-  }
-
   dialogVisible.value = true
+
+  try {
+    // 请求详情接口获取完整数据（列表接口不含 answer/options）
+    const detail = await getQuestionDetail(row.id)
+
+    const frontendType = dbTypeToFrontend(detail.question_type || row.type)
+    questionForm.type = frontendType
+    questionForm.content = detail.content || ''
+    questionForm.answer = Array.isArray(detail.answer) ? detail.answer : (detail.answer || '')
+    questionForm.explanation = detail.analysis || detail.explanation || ''
+    questionForm.difficulty = detail.difficulty || 'medium'
+    questionForm.score = detail.score || 5
+
+    // 选择题填充选项
+    if (frontendType === 'single' || frontendType === 'multiple') {
+      if (detail.options) {
+        const opts = typeof detail.options === 'string' ? JSON.parse(detail.options) : detail.options
+        if (Array.isArray(opts)) {
+          questionForm.options = opts
+        } else if (typeof opts === 'object') {
+          questionForm.options = Object.keys(opts).map(k => ({ key: k, value: opts[k] }))
+        }
+      }
+    }
+  } catch (error) {
+    ElMessage.error('获取题目详情失败')
+    dialogVisible.value = false
+  }
 }
 
 // 删除题目
@@ -483,13 +568,19 @@ const resetForm = () => {
 // 辅助函数
 const getTypeName = (type) => {
   const typeMap = {
+    // 前端简称
     single: '单选题',
     multiple: '多选题',
     judge: '判断题',
     blank: '填空题',
-    essay: '简答题'
+    essay: '简答题',
+    // 后端DB值
+    choice: '单选题',
+    multiple_choice: '多选题',
+    true_false: '判断题',
+    fill_blank: '填空题'
   }
-  return typeMap[type] || type
+  return typeMap[type] || type || ''
 }
 
 const getTypeColor = (type) => {
@@ -498,7 +589,11 @@ const getTypeColor = (type) => {
     multiple: 'success',
     judge: 'warning',
     blank: 'info',
-    essay: 'danger'
+    essay: 'danger',
+    choice: '',
+    multiple_choice: 'success',
+    true_false: 'warning',
+    fill_blank: 'info'
   }
   return colorMap[type] || ''
 }
@@ -519,6 +614,40 @@ const getDifficultyColor = (difficulty) => {
     hard: 'danger'
   }
   return colorMap[difficulty] || ''
+}
+
+// 显示AI出题对话框
+const showAIDialog = () => {
+  aiForm.knowledgePoint = ''
+  aiForm.questionType = 'choice'
+  aiForm.difficulty = 'medium'
+  aiDialogVisible.value = true
+}
+
+// AI生成题目
+const handleAIGenerate = async () => {
+  if (!aiForm.knowledgePoint.trim()) {
+    ElMessage.warning('请输入知识点')
+    return
+  }
+
+  aiGenerating.value = true
+  try {
+    await aiGenerateQuestion({
+      knowledge_point: aiForm.knowledgePoint.trim(),
+      question_type: aiForm.questionType,
+      difficulty: aiForm.difficulty
+    })
+
+    ElMessage.success('AI生成题目成功，已自动添加到题库')
+    aiDialogVisible.value = false
+    fetchQuestionList()
+
+  } catch (error) {
+    ElMessage.error('AI生成失败，请重试')
+  } finally {
+    aiGenerating.value = false
+  }
 }
 
 // 页面加载时获取数据
