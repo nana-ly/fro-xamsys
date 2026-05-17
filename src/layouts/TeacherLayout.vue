@@ -88,8 +88,7 @@ const handleCommand = async (command) => {
         type: 'warning'
       })
 
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
+      localStorage.clear()
       ElMessage.success('已退出登录')
       router.push('/login')
 

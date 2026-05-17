@@ -1,12 +1,26 @@
 <template>
-  <div class="login-container">
+  <div class="login-container" :class="roleTab === 'student' ? 'bg-student' : 'bg-teacher'">
     <el-card class="login-card">
       <template #header>
         <div class="card-header">
           <h2>智能考试平台</h2>
-          <p>教师登录</p>
+          <p>{{ roleTab === 'student' ? '学生登录' : '教师登录' }}</p>
         </div>
       </template>
+
+      <!-- 角色选择标签 -->
+      <div class="role-tabs">
+        <div
+          :class="['role-tab', { active: roleTab === 'student' }]"
+          @click="roleTab = 'student'">
+          👨‍🎓 学生登录
+        </div>
+        <div
+          :class="['role-tab', { active: roleTab === 'teacher' }]"
+          @click="roleTab = 'teacher'">
+          👨‍🏫 教师登录
+        </div>
+      </div>
 
       <el-form
           ref="loginFormRef"
@@ -71,15 +85,14 @@ import { login } from '@/api/teacher'
 const router = useRouter()
 const loginFormRef = ref(null)
 const loading = ref(false)
+const roleTab = ref('teacher')
 
-// 表单数据
 const loginForm = reactive({
   username: '',
   password: '',
   remember: false
 })
 
-// 表单验证规则
 const loginRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -91,35 +104,44 @@ const loginRules = {
   ]
 }
 
-// 登录处理
 const handleLogin = async () => {
-  // 表单验证
   await loginFormRef.value.validate()
 
   loading.value = true
   try {
-    // 调用登录API（与成员一的接口对接）
     const res = await login({
       username: loginForm.username,
       password: loginForm.password
     })
 
+    const user = res.user
+
+    // 保存 token（标记已登录）
+    localStorage.setItem('token', res.token || res.csrfToken || 'true')
+    localStorage.setItem('csrfToken', res.csrfToken || '')
+
     // 保存用户信息
-    localStorage.setItem('userInfo', JSON.stringify(res.user))
-    if (res.csrfToken) {
-      localStorage.setItem('csrfToken', res.csrfToken)
-    }
+    localStorage.setItem('userInfo', JSON.stringify(user))
+    localStorage.setItem('userRole', user.role)
+    localStorage.setItem('userName', user.real_name || user.username)
 
     // 记住密码
     if (loginForm.remember) {
       localStorage.setItem('savedUsername', loginForm.username)
       localStorage.setItem('savedPassword', loginForm.password)
+    } else {
+      localStorage.removeItem('savedUsername')
+      localStorage.removeItem('savedPassword')
     }
 
-    ElMessage.success('登录成功')
+    ElMessage.success(`登录成功，欢迎${user.real_name || user.username}`)
 
-    // 跳转到题库管理页
-    router.push('/teacher/question-bank')
+    // 根据角色跳转
+    if (user.role === 'teacher') {
+      router.push('/teacher/question-bank')
+    } else {
+      router.push('/student/home')
+    }
 
   } catch (error) {
     ElMessage.error(error.message || '登录失败')
@@ -128,12 +150,10 @@ const handleLogin = async () => {
   }
 }
 
-// 跳转注册
 const goRegister = () => {
   router.push('/register')
 }
 
-// 自动填充保存的密码
 const loadSavedPassword = () => {
   const savedUsername = localStorage.getItem('savedUsername')
   const savedPassword = localStorage.getItem('savedPassword')
@@ -144,7 +164,6 @@ const loadSavedPassword = () => {
   }
 }
 
-// 页面加载时自动填充
 loadSavedPassword()
 </script>
 
@@ -154,7 +173,15 @@ loadSavedPassword()
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  transition: background 0.5s ease;
+}
+
+.bg-teacher {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.bg-student {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
 }
 
 .login-card {
@@ -177,6 +204,38 @@ loadSavedPassword()
   font-size: 14px;
 }
 
+.role-tabs {
+  display: flex;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.role-tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px 0;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  background: #f5f5f5;
+  transition: all 0.3s ease;
+}
+
+.role-tab.active {
+  color: #fff;
+  font-weight: 600;
+}
+
+.role-tab:nth-child(1).active {
+  background: linear-gradient(135deg, #11998e, #38ef7d);
+}
+
+.role-tab:nth-child(2).active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
 .login-footer {
   width: 100%;
   text-align: center;
@@ -187,7 +246,6 @@ loadSavedPassword()
   font-size: 14px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .login-card {
     width: 90%;

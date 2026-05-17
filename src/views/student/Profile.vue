@@ -1,0 +1,339 @@
+<template>
+  <div class="profile-page">
+    <div class="container">
+      <!-- 返回按钮 -->
+      <button class="btn btn-back" @click="$router.push('/student/home')">
+        ← 返回主页
+      </button>
+
+      <!-- 个人信息卡片 -->
+      <div class="profile-card card">
+        <div class="profile-avatar">
+          <div class="avatar-circle">👨‍🎓</div>
+          <h2>{{ userName }}</h2>
+          <p class="user-role">学生</p>
+        </div>
+        <div class="profile-stats">
+          <div class="stat-item">
+            <span class="stat-value">{{ stats.totalExams }}</span>
+            <span class="stat-label">参加考试</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ stats.avgScore }}</span>
+            <span class="stat-label">平均分</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ stats.wrongCount }}</span>
+            <span class="stat-label">错题数</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ stats.studyDays }}</span>
+            <span class="stat-label">学习天数</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 学习统计 -->
+      <div class="stats-section">
+        <h3>📊 学习统计</h3>
+        <div class="stats-grid">
+          <div class="stat-card card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-info">
+              <span class="stat-num">{{ stats.completedExams }}</span>
+              <span class="stat-text">已完成考试</span>
+            </div>
+            <div class="stat-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" :style="{ width: progressExam + '%' }"></div>
+              </div>
+              <span class="progress-text">{{ progressExam }}%</span>
+            </div>
+          </div>
+          <div class="stat-card card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-info">
+              <span class="stat-num">{{ stats.masteredQuestions }}</span>
+              <span class="stat-text">已掌握错题</span>
+            </div>
+            <div class="stat-progress">
+              <div class="progress-bar">
+                <div class="progress-fill green" :style="{ width: progressMastered + '%' }"></div>
+              </div>
+              <span class="progress-text">{{ progressMastered }}%</span>
+            </div>
+          </div>
+          <div class="stat-card card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-info">
+              <span class="stat-num">{{ stats.correctRate }}%</span>
+              <span class="stat-text">正确率</span>
+            </div>
+          </div>
+          <div class="stat-card card">
+            <div class="stat-icon">⏱</div>
+            <div class="stat-info">
+              <span class="stat-num">{{ stats.totalHours }}h</span>
+              <span class="stat-text">学习时长</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 学习活跃度热力图 -->
+      <StudyHeatmap :studyData="studyData" />
+
+      <!-- 快捷操作 -->
+      <div class="quick-actions">
+        <h3>🚀 快捷操作</h3>
+        <div class="actions-grid">
+          <button class="action-card card" @click="$router.push('/student/home')">
+            <span class="action-icon">📋</span>
+            <span class="action-text">试卷列表</span>
+          </button>
+          <button class="action-card card" @click="$router.push('/student/exam/0?mode=practice')">
+            <span class="action-icon">🎯</span>
+            <span class="action-text">开始练习</span>
+          </button>
+          <button class="action-card card" @click="$router.push('/student/wrong-book')">
+            <span class="action-icon">📝</span>
+            <span class="action-text">错题本</span>
+          </button>
+          <button class="action-card card danger" @click="handleLogout">
+            <span class="action-icon">🚪</span>
+            <span class="action-text">退出登录</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import StudyHeatmap from '@/components/StudyHeatmap.vue'
+
+const router = useRouter()
+const userName = ref(localStorage.getItem('userName') || '同学')
+
+const stats = ref({
+  totalExams: 0,
+  avgScore: 0,
+  wrongCount: 0,
+  studyDays: 0,
+  completedExams: 0,
+  masteredQuestions: 0,
+  correctRate: 0,
+  totalHours: 0
+})
+
+const studyData = ref([])
+
+const progressExam = computed(() => {
+  if (stats.value.totalExams === 0) return 0
+  return Math.round((stats.value.completedExams / stats.value.totalExams) * 100)
+})
+
+const progressMastered = computed(() => {
+  if (stats.value.wrongCount === 0) return 100
+  return Math.round((stats.value.masteredQuestions / stats.value.wrongCount) * 100)
+})
+
+function generateMockStudyData() {
+  const data = []
+  const today = new Date()
+  for (let i = 0; i < 91; i++) {
+    const date = new Date(today)
+    date.setDate(date.getDate() - i)
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const count = Math.random() > 0.35 ? Math.floor(Math.random() * 12) + 1 : 0
+    if (count > 0) data.push({ date: dateStr, count })
+  }
+  return data
+}
+
+function handleLogout() {
+  localStorage.removeItem('userRole')
+  localStorage.removeItem('userName')
+  localStorage.removeItem('userId')
+  router.push('/login')
+}
+
+onMounted(() => {
+  // 模拟统计数据
+  stats.value = {
+    totalExams: 8,
+    avgScore: 82,
+    wrongCount: 15,
+    studyDays: 23,
+    completedExams: 6,
+    masteredQuestions: 9,
+    correctRate: 76,
+    totalHours: 18
+  }
+  studyData.value = generateMockStudyData()
+})
+</script>
+
+<style scoped>
+.profile-page {
+  padding: 20px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.container { display: flex; flex-direction: column; gap: 20px; }
+
+.btn-back {
+  align-self: flex-start;
+  padding: 8px 20px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.btn-back:hover {
+  border-color: #667eea;
+  color: #667eea;
+  background: #f8f9ff;
+}
+
+.profile-card {
+  padding: 30px;
+  text-align: center;
+}
+
+.profile-avatar {
+  margin-bottom: 20px;
+}
+
+.avatar-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  font-size: 2.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
+.profile-avatar h2 { margin: 0 0 4px; font-size: 1.3em; }
+.user-role { margin: 0; color: #999; font-size: 0.85em; }
+
+.profile-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.stat-item { display: flex; flex-direction: column; align-items: center; }
+.stat-value { font-size: 1.4em; font-weight: 700; color: #667eea; }
+.stat-label { font-size: 0.8em; color: #999; margin-top: 4px; }
+
+.stats-section h3, .quick-actions h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.05em;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.stat-card {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stat-icon { font-size: 1.5em; }
+
+.stat-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stat-num {
+  font-size: 1.4em;
+  font-weight: 700;
+  color: #333;
+}
+
+.stat-text {
+  font-size: 0.8em;
+  color: #999;
+}
+
+.stat-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #667eea;
+  border-radius: 3px;
+  transition: width 0.6s;
+}
+
+.progress-fill.green { background: #27ae60; }
+
+.progress-text {
+  font-size: 0.75em;
+  color: #999;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.action-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.action-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+.action-card.danger { color: #e74c3c; }
+.action-card.danger:hover { background: #fef0f0; }
+
+.action-icon { font-size: 1.8em; }
+.action-text { font-size: 0.85em; color: #555; }
+
+@media (max-width: 768px) {
+  .profile-page { padding: 12px; }
+  .profile-stats { gap: 16px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .actions-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>

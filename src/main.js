@@ -10,7 +10,9 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 // 引入ECharts
 import VueECharts from 'vue-echarts'
-import * as echarts from 'echarts'
+
+// 学生端全局样式
+import './assets/main.css'
 
 const app = createApp(App)
 
