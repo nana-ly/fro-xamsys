@@ -35,7 +35,7 @@
 .status-code {
   font-size: 6em;
   font-weight: 700;
-  color: #0ea5e9;
+  color: #409eff;
   line-height: 1;
   margin-bottom: 10px;
 }

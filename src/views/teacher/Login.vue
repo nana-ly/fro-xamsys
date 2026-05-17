@@ -177,11 +177,11 @@ loadSavedPassword()
 }
 
 .bg-teacher {
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #409eff 0%, #337ecc 100%);
 }
 
 .bg-student {
-  background: linear-gradient(135deg, #0891b2 0%, #22d3ee 100%);
+  background: linear-gradient(135deg, #337ecc 0%, #79bbff 100%);
 }
 
 .login-card {
@@ -229,11 +229,11 @@ loadSavedPassword()
 }
 
 .role-tab:nth-child(1).active {
-  background: linear-gradient(135deg, #0891b2, #22d3ee);
+  background: linear-gradient(135deg, #337ecc, #79bbff);
 }
 
 .role-tab:nth-child(2).active {
-  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
+  background: linear-gradient(135deg, #409eff, #337ecc);
 }
 
 .login-footer {

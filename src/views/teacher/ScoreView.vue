@@ -51,7 +51,7 @@
       <el-col :xs="24" :sm="12" :md="6">
         <el-card class="stat-card">
           <div class="stat-content">
-            <div class="stat-icon" style="background: #0ea5e9">
+            <div class="stat-icon" style="background: #409eff">
               <el-icon><User /></el-icon>
             </div>
             <div class="stat-info">
@@ -553,7 +553,7 @@ onMounted(() => {
 
 .question-score {
   margin-left: auto;
-  color: #0ea5e9;
+  color: #409eff;
   font-weight: bold;
 }
 

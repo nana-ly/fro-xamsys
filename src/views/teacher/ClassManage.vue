@@ -513,7 +513,7 @@ onMounted(() => {
 
 .info-item .el-icon {
   margin-right: 8px;
-  color: #0ea5e9;
+  color: #409eff;
 }
 
 .card-actions {

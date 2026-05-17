@@ -518,9 +518,9 @@ onBeforeUnmount(() => {
 }
 
 .btn-back:hover {
-  border-color: #0ea5e9;
-  color: #0ea5e9;
-  background: #f0f9ff;
+  border-color: #409eff;
+  color: #409eff;
+  background: #ecf5ff;
 }
 
 .exam-header {
@@ -574,7 +574,7 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 36px;
   border: 3px solid #f0f0f0;
-  border-top-color: #0ea5e9;
+  border-top-color: #409eff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 12px;
@@ -608,14 +608,14 @@ onBeforeUnmount(() => {
 }
 
 .nav-dot.answered {
-  border-color: #0ea5e9;
-  background: #e0f7fe;
-  color: #0ea5e9;
+  border-color: #409eff;
+  background: #d9ecff;
+  color: #409eff;
 }
 
 .nav-dot.current {
-  border-color: #0ea5e9;
-  background: #0ea5e9;
+  border-color: #409eff;
+  background: #409eff;
   color: white;
   font-weight: 700;
 }
@@ -635,8 +635,8 @@ onBeforeUnmount(() => {
 
 .question-type-badge {
   padding: 3px 10px;
-  background: #e0f7fe;
-  color: #0ea5e9;
+  background: #d9ecff;
+  color: #409eff;
   border-radius: 12px;
   font-size: 0.8em;
 }
@@ -669,13 +669,13 @@ onBeforeUnmount(() => {
 }
 
 .option-item:hover:not(.correct-answer):not(.wrong-answer) {
-  border-color: #0ea5e9;
-  background: #f0f9ff;
+  border-color: #409eff;
+  background: #ecf5ff;
 }
 
 .option-item.selected {
-  border-color: #0ea5e9;
-  background: #e0f7fe;
+  border-color: #409eff;
+  background: #d9ecff;
 }
 
 .option-item.correct-answer {
@@ -720,7 +720,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 
-.text-input-area textarea:focus { border-color: #0ea5e9; }
+.text-input-area textarea:focus { border-color: #409eff; }
 
 .answer-section {
   margin-top: 20px;
@@ -780,7 +780,7 @@ onBeforeUnmount(() => {
 .result-score {
   font-size: 2.5em;
   font-weight: 700;
-  color: #0ea5e9;
+  color: #409eff;
   margin: 10px 0;
 }
 

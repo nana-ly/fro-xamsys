@@ -184,7 +184,7 @@ const goLogin = () => {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, #409eff 0%, #337ecc 100%);
   padding: 20px 0;
 }
 

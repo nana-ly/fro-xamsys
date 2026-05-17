@@ -101,7 +101,7 @@ onMounted(() => {
 }
 
 .mobile-nav-item.active {
-  color: #0ea5e9;
+  color: #409eff;
 }
 
 .mobile-nav-item .nav-icon {

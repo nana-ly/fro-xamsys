@@ -11,23 +11,6 @@ export default {
 </script>
 
 <style>
-/* ===== Element Plus 主题色覆盖（青蓝色） ===== */
-:root {
-  --el-color-primary: #0ea5e9;
-  --el-color-primary-rgb: 14, 165, 233;
-  --el-color-primary-light-1: #26aeeb;
-  --el-color-primary-light-2: #3eb7ed;
-  --el-color-primary-light-3: #56c0f0;
-  --el-color-primary-light-4: #6ec9f2;
-  --el-color-primary-light-5: #87d2f4;
-  --el-color-primary-light-6: #9fdbf6;
-  --el-color-primary-light-7: #bde4f9;
-  --el-color-primary-light-8: #cfedfb;
-  --el-color-primary-light-9: #e7f6fd;
-  --el-color-primary-dark-1: #0d95d2;
-  --el-color-primary-dark-2: #0b84ba;
-}
-
 /* ===== 全局基础重置 ===== */
 * {
   margin: 0;
@@ -108,7 +91,7 @@ html, body {
   color: #303133;
   margin-bottom: 20px;
   padding-left: 10px;
-  border-left: 3px solid #0ea5e9;
+  border-left: 3px solid #409eff;
 }
 
 /* 统计卡片通用样式 */
@@ -119,7 +102,7 @@ html, body {
 .stat-card .stat-value {
   font-size: 28px;
   font-weight: bold;
-  color: #0ea5e9;
+  color: #409eff;
 }
 
 .stat-card .stat-label {

@@ -257,7 +257,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 24px;
-  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  background: #545c64;
   color: white;
   border-radius: 16px;
 }
@@ -349,7 +349,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border: 3px solid #f0f0f0;
-  border-top-color: #0ea5e9;
+  border-top-color: #409eff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 12px;
@@ -385,8 +385,8 @@ onMounted(() => {
 
 .exam-badge {
   padding: 2px 8px;
-  background: #e0f7fe;
-  color: #0ea5e9;
+  background: #d9ecff;
+  color: #409eff;
   border-radius: 12px;
   font-size: 0.75em;
   white-space: nowrap;
@@ -455,7 +455,7 @@ onMounted(() => {
 
 .form-group input:focus,
 .form-group select:focus {
-  border-color: #0ea5e9;
+  border-color: #409eff;
 }
 
 .form-error {
