@@ -108,28 +108,23 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, from) => {
   document.title = to.meta.title ? `${to.meta.title} - 安全驾驶教育平台` : '安全驾驶教育平台'
 
   if (to.path === '/login') {
-    next()
-    return
+    return true
   }
 
   const token = localStorage.getItem('token')
   if (!token) {
-    next('/login')
-    return
+    return '/login'
   }
 
   // 角色权限检查
   const userRole = localStorage.getItem('userRole')
   if (to.meta.role && userRole && to.meta.role !== userRole) {
-    next(userRole === 'teacher' ? '/teacher' : '/student/home')
-    return
+    return userRole === 'teacher' ? '/teacher' : '/student/home'
   }
-
-  next()
 })
 
 export default router

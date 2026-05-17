@@ -337,7 +337,8 @@ import {
   updateExam,
   getExamDetail,
   getExamQuestions,
-  autoGenerateExam
+  autoGenerateExam,
+  publishPaper
 } from '@/api/teacher'
 
 const router = useRouter()
@@ -573,7 +574,8 @@ const handlePreview = () => {
 
 // 发布试卷
 const handlePublish = async () => {
-  if (selectedQuestions.value.length === 0) {
+  // 编辑模式下允许已选题目为空（已在后端关联）
+  if (!isEdit.value && selectedQuestions.value.length === 0) {
     ElMessage.warning('请先选择题目')
     return
   }
@@ -582,19 +584,39 @@ const handlePublish = async () => {
 
   submitLoading.value = true
   try {
-    const data = {
-      ...examForm,
-      questions: selectedQuestions.value.map(q => ({
-        question_id: q.id,
-        score: q.score
-      }))
-    }
-
     if (isEdit.value) {
-      await updateExam(editId.value, data)
-      ElMessage.success('更新成功')
+      // 编辑模式：仅更新元数据，不重复发送题目
+      const patchData = {
+        name: examForm.title,
+        description: examForm.description,
+        duration: Number(examForm.duration) || 60,
+        target_class: examForm.classIds[0],
+        pass_score: Number(examForm.passScore) || 60,
+        total_score: Number(examForm.totalScore) || 100
+      }
+      // 可选字段：有时间值才发送
+      if (examForm.startTime) patchData.start_time = examForm.startTime
+      if (examForm.endTime) patchData.end_time = examForm.endTime
+
+      await updateExam(editId.value, patchData)
+      await publishPaper(editId.value)
+      ElMessage.success('发布成功')
     } else {
-      await createExam(data)
+      // 新建模式：创建试卷 + 题目
+      await createExam({
+        name: examForm.title,
+        description: examForm.description,
+        duration: Number(examForm.duration) || 60,
+        start_time: examForm.startTime,
+        end_time: examForm.endTime,
+        target_class: examForm.classIds[0],
+        pass_score: Number(examForm.passScore) || 60,
+        total_score: Number(examForm.totalScore) || 100,
+        questions: selectedQuestions.value.map(q => ({
+          question_id: q.id,
+          score: Number(q.score) || 5
+        }))
+      })
       ElMessage.success('发布成功')
     }
 
@@ -634,7 +656,7 @@ const getDifficultyColor = (difficulty) => {
     medium: 'warning',
     hard: 'danger'
   }
-  return colorMap[difficulty] || ''
+  return colorMap[difficulty] || 'info'
 }
 
 // 页面加载

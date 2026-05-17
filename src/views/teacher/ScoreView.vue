@@ -46,6 +46,16 @@
       </el-form>
     </el-card>
 
+    <!-- 当前筛选上下文 -->
+    <div v-if="selectedClassName || selectedExamName" class="filter-context">
+      <el-tag v-if="selectedClassName" type="primary" size="large">
+        <el-icon><School /></el-icon> {{ selectedClassName }}
+      </el-tag>
+      <el-tag v-if="selectedExamName" type="success" size="large">
+        <el-icon><Document /></el-icon> {{ selectedExamName }}
+      </el-tag>
+    </div>
+
     <!-- 数据统计卡片 -->
     <el-row :gutter="20" class="stats-row">
       <el-col :xs="24" :sm="12" :md="6">
@@ -278,13 +288,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   User,
   TrophyBase,
   SortUp,
-  CircleCheck
+  CircleCheck,
+  School,
+  Document
 } from '@element-plus/icons-vue'
 import {
   getClassList,
@@ -305,6 +317,18 @@ const examList = ref([])
 const scoreList = ref([])
 const scoreDetail = ref(null)
 const detailDialogVisible = ref(false)
+
+// 当前选中的班级/试卷名称
+const selectedClassName = computed(() => {
+  if (!filterForm.classId) return ''
+  const cls = classList.value.find(c => c.id === filterForm.classId)
+  return cls ? cls.name : ''
+})
+const selectedExamName = computed(() => {
+  if (!filterForm.examId) return ''
+  const exam = examList.value.find(e => e.id === filterForm.examId)
+  return exam ? exam.name || exam.title : ''
+})
 
 // 筛选表单
 const filterForm = reactive({
@@ -475,7 +499,7 @@ const exportScores = async () => {
 // 辅助函数
 const getScoreType = (score, passScore) => {
   if (score >= 90) return 'success'
-  if (score >= passScore) return ''
+  if (score >= passScore) return 'info'
   return 'danger'
 }
 
@@ -507,7 +531,18 @@ onMounted(() => {
 }
 
 .filter-card {
+  margin-bottom: 16px;
+}
+
+.filter-context {
+  display: flex;
+  gap: 12px;
   margin-bottom: 20px;
+}
+
+.filter-context .el-tag {
+  font-size: 14px;
+  padding: 8px 16px;
 }
 
 /* 统计卡片样式 */

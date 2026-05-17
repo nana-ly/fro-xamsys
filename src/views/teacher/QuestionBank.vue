@@ -585,17 +585,17 @@ const getTypeName = (type) => {
 
 const getTypeColor = (type) => {
   const colorMap = {
-    single: '',
+    single: 'primary',
     multiple: 'success',
     judge: 'warning',
     blank: 'info',
     essay: 'danger',
-    choice: '',
+    choice: 'primary',
     multiple_choice: 'success',
     true_false: 'warning',
     fill_blank: 'info'
   }
-  return colorMap[type] || ''
+  return colorMap[type] || 'info'
 }
 
 const getDifficultyName = (difficulty) => {
@@ -613,7 +613,7 @@ const getDifficultyColor = (difficulty) => {
     medium: 'warning',
     hard: 'danger'
   }
-  return colorMap[difficulty] || ''
+  return colorMap[difficulty] || 'info'
 }
 
 // 显示AI出题对话框
@@ -644,7 +644,15 @@ const handleAIGenerate = async () => {
     fetchQuestionList()
 
   } catch (error) {
-    ElMessage.error('AI生成失败，请重试')
+    console.error('AI生成失败:', error)
+    // 响应拦截器可能已经显示了 ElMessage，这里仅兜底
+    if (error.response) {
+      // error.response 存在说明是 HTTP 错误（拦截器已处理）
+    } else if (error.request) {
+      ElMessage.error('网络请求失败，请检查网络连接')
+    } else {
+      ElMessage.error(error.message || 'AI生成失败，请重试')
+    }
   } finally {
     aiGenerating.value = false
   }
