@@ -113,9 +113,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
+import request from '@/utils/request'
 
 const router = useRouter()
 const userName = ref(localStorage.getItem('userName') || '同学')
+const loading = ref(true)
 
 const stats = ref({
   totalExams: 0,
@@ -140,39 +142,41 @@ const progressMastered = computed(() => {
   return Math.round((stats.value.masteredQuestions / stats.value.wrongCount) * 100)
 })
 
-function generateMockStudyData() {
-  const data = []
-  const today = new Date()
-  for (let i = 0; i < 91; i++) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    const count = Math.random() > 0.35 ? Math.floor(Math.random() * 12) + 1 : 0
-    if (count > 0) data.push({ date: dateStr, count })
-  }
-  return data
-}
-
 function handleLogout() {
   localStorage.removeItem('userRole')
   localStorage.removeItem('userName')
   localStorage.removeItem('userId')
+  localStorage.removeItem('userInfo')
   router.push('/login')
 }
 
-onMounted(() => {
-  // 模拟统计数据
-  stats.value = {
-    totalExams: 8,
-    avgScore: 82,
-    wrongCount: 15,
-    studyDays: 23,
-    completedExams: 6,
-    masteredQuestions: 9,
-    correctRate: 76,
-    totalHours: 18
+async function fetchProfileData() {
+  try {
+    const res = await request({
+      url: '/student/profile/',
+      method: 'get'
+    })
+    const { stats: apiStats, study_data } = res
+    stats.value = {
+      totalExams: apiStats.total_exams || 0,
+      avgScore: apiStats.avg_score || 0,
+      wrongCount: apiStats.wrong_count || 0,
+      studyDays: apiStats.study_days || 0,
+      completedExams: apiStats.completed_exams || 0,
+      masteredQuestions: apiStats.mastered_questions || 0,
+      correctRate: apiStats.correct_rate || 0,
+      totalHours: 0
+    }
+    studyData.value = study_data || []
+  } catch {
+    // keep default zeros on error
+  } finally {
+    loading.value = false
   }
-  studyData.value = generateMockStudyData()
+}
+
+onMounted(() => {
+  fetchProfileData()
 })
 </script>
 
