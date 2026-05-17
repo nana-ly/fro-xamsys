@@ -92,8 +92,10 @@
               <label>题型</label>
               <select v-model="aiParams.questionType">
                 <option value="choice">单选题</option>
-                <option value="judge">判断题</option>
                 <option value="multiple">多选题</option>
+                <option value="judge">判断题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="essay">简答题</option>
               </select>
             </div>
             <div class="form-group">
@@ -199,7 +201,7 @@ function startExam(examId) {
 }
 
 function startPractice() {
-  router.push('/student/exam/0?mode=practice')
+  router.push('/student/practice')
 }
 
 function openAIQuestion() {
@@ -222,6 +224,21 @@ async function generateAIQuestion() {
       aiParams.questionType,
       aiParams.difficulty
     )
+    const generatedQuestion = res.data?.question
+    if (generatedQuestion) {
+      const questions = Array.isArray(generatedQuestion) ? generatedQuestion : [generatedQuestion]
+      showAIQuestion.value = false
+      router.push({
+        path: '/student/practice',
+        query: {
+          knowledgePoint: aiParams.knowledgePoint,
+          questionType: aiParams.questionType,
+          difficulty: aiParams.difficulty,
+          aiQuestions: encodeURIComponent(JSON.stringify(questions))
+        }
+      })
+      return
+    }
     aiResult.value = res.data?.question || null
   } catch (error) {
     const errMsg = error.response?.data?.error || 'AI生成失败，请稍后重试'

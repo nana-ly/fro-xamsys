@@ -77,6 +77,12 @@ const routes = [
         meta: { title: '考试答题' }
       },
       {
+        path: 'practice',
+        name: 'PracticePage',
+        component: () => import('@/views/student/PracticePage.vue'),
+        meta: { title: '练习模式' }
+      },
+      {
         path: 'wrong-book',
         name: 'WrongBook',
         component: () => import('@/views/student/WrongBook.vue'),

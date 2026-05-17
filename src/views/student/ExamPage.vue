@@ -9,17 +9,17 @@
       <!-- 考试头部信息 -->
       <div class="exam-header card" v-if="examInfo">
         <div class="exam-header-left">
-          <h2>{{ examInfo.name || '练习模式' }}</h2>
+          <h2>{{ examInfo.name || '考试' }}</h2>
           <div class="exam-meta">
             <span>共 {{ questions.length }} 题</span>
-            <span v-if="isExamMode">总分: {{ examInfo.total_score || 100 }}</span>
+            <span>总分: {{ examInfo.total_score || 100 }}</span>
           </div>
         </div>
         <div class="exam-header-right">
           <div class="timer" :class="{ 'timer--warning': remainingSeconds <= 300 }">
             ⏱ {{ formatTime(remainingSeconds) }}
           </div>
-          <button v-if="isExamMode" class="btn btn-primary" @click="submitExam">
+          <button class="btn btn-primary" @click="submitExam">
             交卷
           </button>
         </div>
@@ -110,7 +110,7 @@
             </div>
 
             <!-- 判断题 -->
-            <div v-if="currentQuestion.question_type === 'true_false'" class="options-list">
+            <div v-if="isTrueFalseType(currentQuestion.question_type)" class="options-list">
               <label
                 :class="[
                   'option-item',
@@ -141,11 +141,42 @@
               </label>
             </div>
 
-            <!-- 填空题/简答题 -->
-            <div v-if="isTextType(currentQuestion.question_type)" class="text-input-area">
+            <!-- 填空题 -->
+            <div v-if="isFillBlankType(currentQuestion.question_type)" class="text-input-area">
+              <label class="input-label">📝 答题区域（请输入填空答案）</label>
               <textarea
                 v-model="textAnswer"
-                :placeholder="currentQuestion.question_type === 'fill_blank' ? '请输入答案...' : '请输入你的回答...'"
+                placeholder="请输入填空答案..."
+                rows="3"
+                @input="saveAnswer(textAnswer)"
+                :disabled="showResult"
+              ></textarea>
+            </div>
+
+            <!-- 简答题 -->
+            <div v-if="isEssayType(currentQuestion.question_type)" class="text-input-area">
+              <label class="input-label">📝 答题区域（请输入你的回答）</label>
+              <textarea
+                v-model="textAnswer"
+                placeholder="请在此输入你的答案，可以详细阐述..."
+                rows="6"
+                @input="saveAnswer(textAnswer)"
+                :disabled="showResult"
+              ></textarea>
+            </div>
+
+            <!-- 未识别题型（通用文本输入兜底） -->
+            <div
+              v-if="!isChoiceType(currentQuestion.question_type) &&
+                   !isTrueFalseType(currentQuestion.question_type) &&
+                   !isFillBlankType(currentQuestion.question_type) &&
+                   !isEssayType(currentQuestion.question_type)"
+              class="text-input-area"
+            >
+              <label class="input-label">📝 答题区域（{{ typeLabel(currentQuestion.question_type) }}）</label>
+              <textarea
+                v-model="textAnswer"
+                placeholder="请在此输入你的答案..."
                 rows="4"
                 @input="saveAnswer(textAnswer)"
                 :disabled="showResult"
@@ -153,8 +184,8 @@
             </div>
           </div>
 
-          <!-- 答案与解析（练习模式或已提交后显示） -->
-          <div v-if="showResult || !isExamMode" class="answer-section">
+          <!-- 答案与解析（交卷后显示） -->
+          <div v-if="showResult" class="answer-section">
             <div class="answer-correct">
               <strong>正确答案：</strong>
               <span>{{ currentQuestion.answer }}</span>
@@ -249,8 +280,6 @@ const showAIModal = ref(false)
 const aiQuestion = ref(null)
 
 let timerInterval = null
-
-const isExamMode = computed(() => route.query.mode !== 'practice')
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
 
 const selectedAnswer = computed({
@@ -300,22 +329,37 @@ const parsedOptions = computed(() => {
 })
 
 function isChoiceType(type) {
-  return type === 'choice' || type === 'multiple_choice'
+  return type === 'choice' || type === 'multiple_choice' || type === 'multiple'
 }
 
-function isTextType(type) {
-  return type === 'fill_blank' || type === 'essay'
+function isTrueFalseType(type) {
+  return type === 'true_false' || type === 'judge' || type === 'judgment'
+}
+
+function isFillBlankType(type) {
+  return type === 'fill_blank' || type === 'fill' || type === 'blank'
+}
+
+function isEssayType(type) {
+  return type === 'essay' || type === 'short_answer' || type === 'short'
 }
 
 function typeLabel(type) {
   const map = {
     choice: '单选题',
     multiple_choice: '多选题',
+    multiple: '多选题',
     true_false: '判断题',
+    judge: '判断题',
+    judgment: '判断题',
     fill_blank: '填空题',
-    essay: '简答题'
+    fill: '填空题',
+    blank: '填空题',
+    essay: '简答题',
+    short_answer: '简答题',
+    short: '简答题'
   }
-  return map[type] || type
+  return map[type] || type || '未分类题'
 }
 
 function formatTime(seconds) {
@@ -331,9 +375,7 @@ function startTimer() {
       remainingSeconds.value--
     } else {
       clearInterval(timerInterval)
-      if (isExamMode.value) {
-        confirmSubmit()
-      }
+      confirmSubmit()
     }
   }, 1000)
 }
@@ -368,18 +410,7 @@ async function confirmSubmit() {
   showSubmitModal.value = false
   submitting.value = true
 
-  if (!isExamMode.value) {
-    // 练习模式，直接计算
-    calculateScore()
-    showResultModal.value = true
-    showResult.value = true
-    submitting.value = false
-    clearInterval(timerInterval)
-    return
-  }
-
   try {
-    // 构建提交答案格式
     const answerList = questions.value.map(q => ({
       question_id: q.id,
       answer: answers.value[q.id] || ''
@@ -397,17 +428,6 @@ async function confirmSubmit() {
   }
 }
 
-function calculateScore() {
-  let correct = 0
-  questions.value.forEach(q => {
-    if (String(answers.value[q.id]).trim() === String(q.answer).trim()) {
-      correct++
-    }
-  })
-  correctCount.value = correct
-  score.value = questions.value.length > 0 ? Math.round((correct / questions.value.length) * 100) : 0
-}
-
 function reviewAnswers() {
   showResultModal.value = false
 }
@@ -421,68 +441,20 @@ async function loadExam() {
   loading.value = true
   error.value = ''
 
-  if (isExamMode.value) {
-    try {
-      const res = await getExamDetail(examId)
-      examInfo.value = res.data?.exam || res.data
-      questions.value = res.data?.questions || []
-      if (examInfo.value?.duration) {
-        remainingSeconds.value = examInfo.value.duration * 60
-      }
-      // 调用开始考试接口，创建 ongoing 记录
-      await startExam(examId)
-    } catch (err) {
-      error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
+  try {
+    const res = await getExamDetail(examId)
+    examInfo.value = res.data?.exam || res.data
+    questions.value = res.data?.questions || []
+    if (examInfo.value?.duration) {
+      remainingSeconds.value = examInfo.value.duration * 60
     }
-  } else {
-    // 练习模式，加载一些示例题目或从题库获取
-    examInfo.value = { name: '练习模式', total_score: 100 }
-    try {
-      // 尝试从API获取
-      const res = await getExamDetail(0)
-      questions.value = res.data?.questions || []
-    } catch {
-      // 模拟题目
-      questions.value = getMockQuestions()
-    }
+    await startExam(examId)
+  } catch (err) {
+    error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
   }
+
   loading.value = false
-
-  if (isExamMode.value) {
-    startTimer()
-  }
-}
-
-function getMockQuestions() {
-  return [
-    {
-      id: 1,
-      question_type: 'choice',
-      content: 'Python中列表推导式的基本语法是什么？',
-      options: '{"A": "[x for x in iterable]", "B": "for x in iterable: [x]", "C": "list(for x in iterable)", "D": "{x for x in iterable}"}',
-      answer: 'A',
-      analysis: '列表推导式语法为 [expression for item in iterable]',
-      difficulty: 2
-    },
-    {
-      id: 2,
-      question_type: 'true_false',
-      content: 'Python中的字典是有序集合。',
-      options: '',
-      answer: 'true',
-      analysis: 'Python 3.7+ 中字典保持插入顺序',
-      difficulty: 1
-    },
-    {
-      id: 3,
-      question_type: 'multiple_choice',
-      content: '以下哪些是Python的不可变类型？',
-      options: '{"A": "int", "B": "list", "C": "tuple", "D": "str"}',
-      answer: 'A,C,D',
-      analysis: 'int, tuple, str 是不可变类型，list是可变类型',
-      difficulty: 2
-    }
-  ]
+  startTimer()
 }
 
 onMounted(() => {
@@ -710,6 +682,14 @@ onBeforeUnmount(() => {
 .option-text { flex: 1; font-size: 0.9em; }
 .check-mark { color: #4caf50; font-weight: 700; }
 .x-mark { color: #e74c3c; font-weight: 700; }
+
+.input-label {
+  display: block;
+  font-size: 0.85em;
+  color: #555;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
 
 .text-input-area textarea {
   width: 100%;
