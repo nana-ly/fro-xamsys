@@ -110,7 +110,7 @@
             </div>
 
             <!-- 判断题 -->
-            <div v-if="isTrueFalseType(currentQuestion.question_type)" class="options-list">
+            <div v-if="currentQuestion.question_type === 'true_false'" class="options-list">
               <label
                 :class="[
                   'option-item',
@@ -141,42 +141,11 @@
               </label>
             </div>
 
-            <!-- 填空题 -->
-            <div v-if="isFillBlankType(currentQuestion.question_type)" class="text-input-area">
-              <label class="input-label">📝 答题区域（请输入填空答案）</label>
+            <!-- 填空题/简答题 -->
+            <div v-if="isTextType(currentQuestion.question_type)" class="text-input-area">
               <textarea
                 v-model="textAnswer"
-                placeholder="请输入填空答案..."
-                rows="3"
-                @input="saveAnswer(textAnswer)"
-                :disabled="showResult"
-              ></textarea>
-            </div>
-
-            <!-- 简答题 -->
-            <div v-if="isEssayType(currentQuestion.question_type)" class="text-input-area">
-              <label class="input-label">📝 答题区域（请输入你的回答）</label>
-              <textarea
-                v-model="textAnswer"
-                placeholder="请在此输入你的答案，可以详细阐述..."
-                rows="6"
-                @input="saveAnswer(textAnswer)"
-                :disabled="showResult"
-              ></textarea>
-            </div>
-
-            <!-- 未识别题型（通用文本输入兜底） -->
-            <div
-              v-if="!isChoiceType(currentQuestion.question_type) &&
-                   !isTrueFalseType(currentQuestion.question_type) &&
-                   !isFillBlankType(currentQuestion.question_type) &&
-                   !isEssayType(currentQuestion.question_type)"
-              class="text-input-area"
-            >
-              <label class="input-label">📝 答题区域（{{ typeLabel(currentQuestion.question_type) }}）</label>
-              <textarea
-                v-model="textAnswer"
-                placeholder="请在此输入你的答案..."
+                :placeholder="currentQuestion.question_type === 'fill_blank' ? '请输入答案...' : '请输入你的回答...'"
                 rows="4"
                 @input="saveAnswer(textAnswer)"
                 :disabled="showResult"
@@ -329,37 +298,22 @@ const parsedOptions = computed(() => {
 })
 
 function isChoiceType(type) {
-  return type === 'choice' || type === 'multiple_choice' || type === 'multiple'
+  return type === 'choice' || type === 'multiple_choice'
 }
 
-function isTrueFalseType(type) {
-  return type === 'true_false' || type === 'judge' || type === 'judgment'
-}
-
-function isFillBlankType(type) {
-  return type === 'fill_blank' || type === 'fill' || type === 'blank'
-}
-
-function isEssayType(type) {
-  return type === 'essay' || type === 'short_answer' || type === 'short'
+function isTextType(type) {
+  return type === 'fill_blank' || type === 'essay'
 }
 
 function typeLabel(type) {
   const map = {
     choice: '单选题',
     multiple_choice: '多选题',
-    multiple: '多选题',
     true_false: '判断题',
-    judge: '判断题',
-    judgment: '判断题',
     fill_blank: '填空题',
-    fill: '填空题',
-    blank: '填空题',
-    essay: '简答题',
-    short_answer: '简答题',
-    short: '简答题'
+    essay: '简答题'
   }
-  return map[type] || type || '未分类题'
+  return map[type] || type
 }
 
 function formatTime(seconds) {
@@ -411,6 +365,7 @@ async function confirmSubmit() {
   submitting.value = true
 
   try {
+    // 构建提交答案格式
     const answerList = questions.value.map(q => ({
       question_id: q.id,
       answer: answers.value[q.id] || ''
@@ -448,12 +403,13 @@ async function loadExam() {
     if (examInfo.value?.duration) {
       remainingSeconds.value = examInfo.value.duration * 60
     }
+    // 调用开始考试接口，创建 ongoing 记录
     await startExam(examId)
   } catch (err) {
     error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
   }
-
   loading.value = false
+
   startTimer()
 }
 
@@ -682,14 +638,6 @@ onBeforeUnmount(() => {
 .option-text { flex: 1; font-size: 0.9em; }
 .check-mark { color: #4caf50; font-weight: 700; }
 .x-mark { color: #e74c3c; font-weight: 700; }
-
-.input-label {
-  display: block;
-  font-size: 0.85em;
-  color: #555;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
 
 .text-input-area textarea {
   width: 100%;

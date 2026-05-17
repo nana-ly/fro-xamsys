@@ -92,10 +92,8 @@
               <label>题型</label>
               <select v-model="aiParams.questionType">
                 <option value="choice">单选题</option>
-                <option value="multiple">多选题</option>
                 <option value="judge">判断题</option>
-                <option value="fill_blank">填空题</option>
-                <option value="essay">简答题</option>
+                <option value="multiple">多选题</option>
               </select>
             </div>
             <div class="form-group">
@@ -114,8 +112,11 @@
               </button>
             </div>
             <div v-if="aiResult" class="ai-result">
-              <h4>✅ 生成成功！题目已加入题库</h4>
+              <h4>✅ 生成成功！</h4>
               <p>{{ aiResult.content }}</p>
+              <button class="btn btn-primary ai-practice-btn" @click="goAIPractice">
+                🎯 去练习这个题目
+              </button>
             </div>
           </div>
         </div>
@@ -211,6 +212,20 @@ function openAIQuestion() {
   showAIQuestion.value = true
 }
 
+function goAIPractice() {
+  if (aiResult.value) {
+    const questions = Array.isArray(aiResult.value) ? aiResult.value : [aiResult.value]
+    router.push({
+      path: '/student/practice',
+      query: {
+        source: 'ai',
+        aiQuestions: JSON.stringify(questions)
+      }
+    })
+  }
+  showAIQuestion.value = false
+}
+
 async function generateAIQuestion() {
   if (!aiParams.knowledgePoint.trim()) {
     aiError.value = '请输入知识点'
@@ -224,21 +239,6 @@ async function generateAIQuestion() {
       aiParams.questionType,
       aiParams.difficulty
     )
-    const generatedQuestion = res.data?.question
-    if (generatedQuestion) {
-      const questions = Array.isArray(generatedQuestion) ? generatedQuestion : [generatedQuestion]
-      showAIQuestion.value = false
-      router.push({
-        path: '/student/practice',
-        query: {
-          knowledgePoint: aiParams.knowledgePoint,
-          questionType: aiParams.questionType,
-          difficulty: aiParams.difficulty,
-          aiQuestions: encodeURIComponent(JSON.stringify(questions))
-        }
-      })
-      return
-    }
     aiResult.value = res.data?.question || null
   } catch (error) {
     const errMsg = error.response?.data?.error || 'AI生成失败，请稍后重试'
