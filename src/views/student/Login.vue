@@ -294,11 +294,11 @@ async function handleRegister() {
 }
 
 .theme-student {
-  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  background: linear-gradient(135deg, #0891b2 0%, #22d3ee 100%);
 }
 
 .theme-teacher {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
 }
 
 .login-container {
@@ -365,12 +365,12 @@ async function handleRegister() {
 }
 
 .role-card:nth-child(1).active {
-  border-color: #11998e;
+  border-color: #0891b2;
   background: linear-gradient(135deg, rgba(17, 153, 142, 0.06), rgba(56, 239, 125, 0.06));
 }
 
 .role-card:nth-child(2).active {
-  border-color: #667eea;
+  border-color: #0ea5e9;
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.06), rgba(118, 75, 162, 0.06));
 }
 
@@ -386,8 +386,8 @@ async function handleRegister() {
   margin-bottom: 4px;
 }
 
-.role-card:nth-child(1).active .role-label { color: #11998e; }
-.role-card:nth-child(2).active .role-label { color: #667eea; }
+.role-card:nth-child(1).active .role-label { color: #0891b2; }
+.role-card:nth-child(2).active .role-label { color: #0ea5e9; }
 
 .role-desc {
   font-size: 0.75em;
@@ -416,13 +416,13 @@ async function handleRegister() {
 
 .tab-btn.active {
   font-weight: 600;
-  border-bottom-color: #667eea;
-  color: #667eea;
+  border-bottom-color: #0ea5e9;
+  color: #0ea5e9;
 }
 
 .theme-student .tab-btn.active {
-  border-bottom-color: #11998e;
-  color: #11998e;
+  border-bottom-color: #0891b2;
+  color: #0891b2;
 }
 
 /* ===== 表单 ===== */
@@ -442,11 +442,11 @@ async function handleRegister() {
 }
 
 .theme-student .role-badge {
-  background: linear-gradient(135deg, #11998e, #38ef7d);
+  background: linear-gradient(135deg, #0891b2, #22d3ee);
 }
 
 .theme-teacher .role-badge {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
 }
 
 .form-group {
@@ -473,11 +473,11 @@ async function handleRegister() {
 }
 
 .form-group input:focus {
-  border-color: #667eea;
+  border-color: #0ea5e9;
 }
 
 .theme-student .form-group input:focus {
-  border-color: #11998e;
+  border-color: #0891b2;
 }
 
 .form-error {
@@ -514,11 +514,11 @@ async function handleRegister() {
 }
 
 .theme-student .submit-btn {
-  background: linear-gradient(135deg, #11998e, #38ef7d);
+  background: linear-gradient(135deg, #0891b2, #22d3ee);
 }
 
 .theme-teacher .submit-btn {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
 }
 
 .submit-btn:hover { opacity: 0.9; }

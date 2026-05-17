@@ -63,17 +63,17 @@ const initChart = () => {
         data: yData,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#83bff6' },
-            { offset: 0.5, color: '#188df0' },
-            { offset: 1, color: '#188df0' }
+            { offset: 0, color: '#67e8f9' },
+            { offset: 0.5, color: '#0ea5e9' },
+            { offset: 1, color: '#0ea5e9' }
           ])
         },
         emphasis: {
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#2378f7' },
-              { offset: 0.7, color: '#2378f7' },
-              { offset: 1, color: '#83bff6' }
+              { offset: 0, color: '#0284c7' },
+              { offset: 0.7, color: '#0284c7' },
+              { offset: 1, color: '#67e8f9' }
             ])
           }
         },

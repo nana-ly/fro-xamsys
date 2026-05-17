@@ -273,7 +273,7 @@ onBeforeUnmount(() => {
   align-items: center;
   padding: 16px 20px;
   border-bottom: 1px solid #f0f0f0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
   color: white;
 }
 
@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
 
 .question-info {
   padding: 12px 16px;
-  background: #f8f9ff;
+  background: #f0f9ff;
   border-bottom: 1px solid #e8e8ff;
   max-height: 120px;
   overflow-y: auto;
@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
 .question-label {
   margin: 0 0 6px 0;
   font-size: 0.85em;
-  color: #667eea;
+  color: #0ea5e9;
   font-weight: 600;
 }
 
@@ -340,7 +340,7 @@ onBeforeUnmount(() => {
 .option-tag {
   display: inline-block;
   padding: 2px 8px;
-  background: #f0f0ff;
+  background: #e0f7fe;
   border-radius: 4px;
   font-size: 0.8em;
   color: #555;
@@ -397,7 +397,7 @@ onBeforeUnmount(() => {
 }
 
 .chat-message--user .chat-bubble {
-  background: #667eea;
+  background: #0ea5e9;
   color: white;
   border-bottom-right-radius: 4px;
 }
@@ -477,7 +477,7 @@ onBeforeUnmount(() => {
   border: 1px solid #ddd;
   border-radius: 16px;
   background: white;
-  color: #667eea;
+  color: #0ea5e9;
   font-size: 0.8em;
   cursor: pointer;
   transition: all 0.2s;
@@ -485,9 +485,9 @@ onBeforeUnmount(() => {
 }
 
 .quick-btn:hover {
-  background: #667eea;
+  background: #0ea5e9;
   color: white;
-  border-color: #667eea;
+  border-color: #0ea5e9;
 }
 
 .input-area {
@@ -506,7 +506,7 @@ onBeforeUnmount(() => {
 }
 
 .chat-input:focus {
-  border-color: #667eea;
+  border-color: #0ea5e9;
 }
 
 .chat-input:disabled {
@@ -515,7 +515,7 @@ onBeforeUnmount(() => {
 
 .send-btn {
   padding: 10px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
   color: white;
   border: none;
   border-radius: 24px;

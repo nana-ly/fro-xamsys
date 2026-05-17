@@ -640,7 +640,7 @@ onMounted(async () => {
 
 .stat-item .value {
   font-weight: bold;
-  color: #409eff;
+  color: #0ea5e9;
 }
 
 .stat-title {

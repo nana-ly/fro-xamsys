@@ -198,9 +198,9 @@ onMounted(() => {
 }
 
 .btn-back:hover {
-  border-color: #667eea;
-  color: #667eea;
-  background: #f8f9ff;
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+  background: #f0f9ff;
 }
 
 .profile-card {
@@ -216,7 +216,7 @@ onMounted(() => {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #0ea5e9, #06b6d4);
   color: white;
   font-size: 2.2em;
   display: flex;
@@ -237,7 +237,7 @@ onMounted(() => {
 }
 
 .stat-item { display: flex; flex-direction: column; align-items: center; }
-.stat-value { font-size: 1.4em; font-weight: 700; color: #667eea; }
+.stat-value { font-size: 1.4em; font-weight: 700; color: #0ea5e9; }
 .stat-label { font-size: 0.8em; color: #999; margin-top: 4px; }
 
 .stats-section h3, .quick-actions h3 {
@@ -293,7 +293,7 @@ onMounted(() => {
 
 .progress-fill {
   height: 100%;
-  background: #667eea;
+  background: #0ea5e9;
   border-radius: 3px;
   transition: width 0.6s;
 }

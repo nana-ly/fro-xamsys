@@ -368,9 +368,9 @@ onMounted(() => {
 }
 
 .btn-back:hover {
-  border-color: #667eea;
-  color: #667eea;
-  background: #f8f9ff;
+  border-color: #0ea5e9;
+  color: #0ea5e9;
+  background: #f0f9ff;
 }
 
 .page-header {
@@ -428,7 +428,7 @@ onMounted(() => {
 
 .filter-group select:focus,
 .filter-group input:focus {
-  border-color: #667eea;
+  border-color: #0ea5e9;
 }
 
 .loading-state {
@@ -441,7 +441,7 @@ onMounted(() => {
   width: 36px;
   height: 36px;
   border: 3px solid #f0f0f0;
-  border-top-color: #667eea;
+  border-top-color: #0ea5e9;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 12px;
@@ -484,8 +484,8 @@ onMounted(() => {
 
 .type-badge {
   padding: 2px 8px;
-  background: #f0f0ff;
-  color: #667eea;
+  background: #e0f7fe;
+  color: #0ea5e9;
   border-radius: 10px;
   font-size: 0.75em;
 }
@@ -564,7 +564,7 @@ onMounted(() => {
 
 .analysis-box {
   padding: 12px 14px;
-  background: #f8f9ff;
+  background: #f0f9ff;
   border-radius: 8px;
   font-size: 0.85em;
   color: #555;
@@ -641,7 +641,7 @@ onMounted(() => {
 }
 
 .form-group input:focus,
-.form-group textarea:focus { border-color: #667eea; }
+.form-group textarea:focus { border-color: #0ea5e9; }
 
 .form-error {
   color: #e74c3c;

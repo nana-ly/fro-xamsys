@@ -66,7 +66,7 @@ const initChart = () => {
         data: avgData,
         smooth: true,
         itemStyle: {
-          color: '#409eff'
+          color: '#0ea5e9'
         },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
