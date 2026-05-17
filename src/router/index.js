@@ -48,6 +48,12 @@ const routes = [
         name: 'ExamList',
         component: () => import('@/views/teacher/ExamList.vue'),
         meta: { title: '试卷管理' }
+      },
+      {
+        path: 'profile',
+        name: 'TeacherProfile',
+        component: () => import('@/views/teacher/Profile.vue'),
+        meta: { title: '个人信息' }
       }
     ]
   },

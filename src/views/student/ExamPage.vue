@@ -226,7 +226,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getExamDetail, submitExam as submitExamApi } from '@/api/student'
+import { getExamDetail, startExam, submitExam as submitExamApi } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -386,7 +386,7 @@ async function confirmSubmit() {
     }))
     const res = await submitExamApi(examId, answerList)
     score.value = res.data?.score || 0
-    correctCount.value = res.data?.correct_count || 0
+    correctCount.value = res.data?.correct || 0
     showResultModal.value = true
     showResult.value = true
     clearInterval(timerInterval)
@@ -429,6 +429,8 @@ async function loadExam() {
       if (examInfo.value?.duration) {
         remainingSeconds.value = examInfo.value.duration * 60
       }
+      // 调用开始考试接口，创建 ongoing 记录
+      await startExam(examId)
     } catch (err) {
       error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
     }

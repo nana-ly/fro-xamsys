@@ -195,6 +195,13 @@ export const getExamDetail = (id) => {
     })
 }
 
+export const getExamQuestions = (id) => {
+    return request({
+        url: `/exam/papers/${id}/questions/`,
+        method: 'get'
+    })
+}
+
 export const createExam = (data) => {
     return request({
         url: '/exam/papers/',

@@ -30,7 +30,7 @@
             <el-option
                 v-for="exam in examList"
                 :key="exam.id"
-                :label="exam.title"
+                :label="exam.name"
                 :value="exam.id" />
           </el-select>
         </el-form-item>
@@ -364,26 +364,40 @@ const handleClassChange = async () => {
 const fetchScoreData = async () => {
   loading.value = true
   try {
+    const params = {}
+    if (filterForm.classId) params.class_id = filterForm.classId
+    if (filterForm.examId) params.exam_id = filterForm.examId
+    params.page = pagination.current
+    params.page_size = pagination.size
+
     // 获取成绩列表
-    const scoreRes = await getScoreList({
-      class_id: filterForm.classId,
-      exam_id: filterForm.examId,
-      page: pagination.current,
-      page_size: pagination.size
-    })
-    scoreList.value = scoreRes.results
-    pagination.total = scoreRes.count
+    const scoreRes = await getScoreList(params)
+    // 映射后端字段到前端表格期望的字段名
+    scoreList.value = (scoreRes.results || []).map(r => ({
+      ...r,
+      exam_title: r.paper_name,
+      submit_time: r.submitted_at,
+      student_id: r.student,
+      class_name: r.class_name || '',
+      pass_score: 60
+    }))
+    pagination.total = scoreRes.count || 0
 
     // 获取统计数据
-    const statsRes = await getScoreStatistics({
-      class_id: filterForm.classId,
-      exam_id: filterForm.examId
-    })
+    const statsParams = {}
+    if (filterForm.classId) statsParams.class_id = filterForm.classId
+    if (filterForm.examId) statsParams.exam_id = filterForm.examId
 
-    Object.assign(statistics, statsRes.statistics)
-    chartData.distribution = statsRes.distribution
-    chartData.accuracy = statsRes.accuracy
-    chartData.trend = statsRes.trend
+    const statsRes = await getScoreStatistics(statsParams)
+
+    const stats = statsRes.statistics || statsRes
+    statistics.totalStudents = stats.total || 0
+    statistics.avgScore = stats.average_score || 0
+    statistics.maxScore = stats.highest_score || 0
+    statistics.passRate = stats.total > 0 ? Math.round((stats.pass_count || 0) / stats.total * 100) : 0
+    chartData.distribution = statsRes.distribution || []
+    chartData.accuracy = statsRes.accuracy || []
+    chartData.trend = statsRes.trend || []
 
   } catch (error) {
     ElMessage.error('获取成绩数据失败')
@@ -407,7 +421,28 @@ const handleCurrentChange = (page) => {
 const viewDetail = async (row) => {
   try {
     const res = await getScoreDetail(row.id)
-    scoreDetail.value = res
+    // 后端返回 { record: {...}, answers: [...] }
+    const record = res.record || res
+    const rawAnswers = res.answers || []
+    const answers = rawAnswers.map(a => ({
+      ...a,
+      question_content: a.question_detail?.content || '',
+      correct_answer: a.question_detail?.answer || '',
+      explanation: a.question_detail?.analysis || '',
+      total_score: a.score || 0
+    }))
+    scoreDetail.value = {
+      ...record,
+      exam_title: record.paper_name,
+      submit_time: record.submitted_at,
+      student_id: record.student,
+      pass_score: 60,
+      total_score: record.paper?.total_score || 100,
+      duration: record.started_at && record.submitted_at
+        ? Math.round((new Date(record.submitted_at) - new Date(record.started_at)) / 60000)
+        : 0,
+      answers
+    }
     detailDialogVisible.value = true
   } catch (error) {
     ElMessage.error('获取详情失败')

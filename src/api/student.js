@@ -50,6 +50,11 @@ export function getExamDetail(examId) {
   return api.get(`/student/exams/${examId}/`)
 }
 
+// 开始考试
+export function startExam(examId) {
+  return api.post(`/student/exams/${examId}/start/`)
+}
+
 // 提交答案
 export function submitExam(examId, answers) {
   return api.post(`/student/exams/${examId}/submit/`, { answers })

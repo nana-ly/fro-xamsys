@@ -177,7 +177,7 @@
     <!-- AI问答弹窗 -->
     <AIAnswerModal
       v-model:visible="showAIModal"
-      :question-id="aiQuestion?.id"
+      :question-id="aiQuestion?.question_id"
       :question-content="aiQuestion?.content"
       :question-options="aiQuestion?.options"
     />

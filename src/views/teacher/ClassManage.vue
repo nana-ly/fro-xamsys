@@ -211,7 +211,8 @@ import {
   getClassStudents,
   addStudentsToClass,
   removeStudentFromClass,
-  searchStudents as searchStudentsAPI
+  searchStudents as searchStudentsAPI,
+  getExamList
 } from '@/api/teacher'
 
 // 数据定义
@@ -251,7 +252,30 @@ const classRules = {
 const fetchClassList = async () => {
   try {
     const res = await getClassList()
-    classList.value = res.results || res
+    const classes = res.results || res
+
+    // 批量查询每个班级的学生数和考试数
+    const enriched = await Promise.all(
+      classes.map(async (cls) => {
+        try {
+          const [stuRes, examRes] = await Promise.all([
+            getClassStudents(cls.id),
+            getExamList({ class_id: cls.id })
+          ])
+          const students = stuRes.results || stuRes
+          const exams = examRes.results || examRes
+          return {
+            ...cls,
+            student_count: Array.isArray(students) ? students.length : 0,
+            exam_count: Array.isArray(exams) ? exams.length : 0
+          }
+        } catch {
+          return { ...cls, student_count: 0, exam_count: 0 }
+        }
+      })
+    )
+
+    classList.value = enriched
   } catch (error) {
     ElMessage.error('获取班级列表失败')
   }

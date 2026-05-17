@@ -336,6 +336,7 @@ import {
   createExam,
   updateExam,
   getExamDetail,
+  getExamQuestions,
   autoGenerateExam
 } from '@/api/teacher'
 
@@ -432,8 +433,10 @@ const disabledDate = (time) => {
 // 获取班级列表
 const fetchClassList = async () => {
   try {
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
     const res = await getClassList()
-    classList.value = res.results || res
+    const allClasses = res.results || res
+    classList.value = allClasses.filter(cls => cls.teacher === userInfo.id)
   } catch (error) {
     ElMessage.error('获取班级列表失败')
   }
@@ -604,9 +607,27 @@ onMounted(async () => {
     editId.value = route.query.id
 
     try {
-      const res = await getExamDetail(editId.value)
-      Object.assign(examForm, res)
-      selectedQuestions.value = res.questions
+      const [paper, questionsData] = await Promise.all([
+        getExamDetail(editId.value),
+        getExamQuestions(editId.value)
+      ])
+      examForm.title = paper.name || ''
+      examForm.description = paper.description || ''
+      examForm.duration = paper.duration || 60
+      examForm.startTime = paper.published_at || ''
+      examForm.endTime = paper.end_time || ''
+      examForm.classIds = paper.target_class ? [paper.target_class] : []
+      examForm.passScore = paper.pass_score || 60
+      examForm.totalScore = paper.total_score || 100
+      selectedQuestions.value = (Array.isArray(questionsData) ? questionsData : []).map(pq => ({
+        id: pq.question_detail?.id ?? pq.question,
+        content: pq.question_detail?.content ?? '',
+        type: pq.question_detail?.question_type ?? '',
+        options: pq.question_detail?.options ?? '',
+        answer: pq.question_detail?.answer ?? '',
+        difficulty: pq.question_detail?.difficulty ?? 1,
+        score: pq.score || 5
+      }))
     } catch (error) {
       ElMessage.error('获取试卷详情失败')
     }

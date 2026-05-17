@@ -96,8 +96,7 @@ const handleCommand = async (command) => {
       // 取消操作
     }
   } else if (command === 'profile') {
-    // 跳转个人信息页面
-    ElMessage.info('功能开发中')
+    router.push('/teacher/profile')
   }
 }
 </script>
