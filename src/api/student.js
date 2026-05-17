@@ -80,12 +80,13 @@ export function toggleMaster(wrongId, isMastered) {
 // ===================== AI相关 =====================
 
 // AI出题
-export function aiGenerateQuestion(knowledgePoint, questionType = 'choice', difficulty = 'medium') {
+export function aiGenerateQuestion(knowledgePoint, questionType = 'choice', difficulty = 'medium', count = 5) {
   return api.post('/student/ai/generate_question/', {
     knowledge_point: knowledgePoint,
     question_type: questionType,
-    difficulty: difficulty
-  })
+    difficulty: difficulty,
+    count: count
+  }, { timeout: 60000 })
 }
 
 // AI问答（对错题提问）
@@ -130,6 +131,11 @@ export function getQuestionBank(params = {}) {
 // 获取考试记录（用于学习统计）
 export function getExamRecords() {
   return api.get('/exam/records/')
+}
+
+// 获取学习活跃度数据
+export function getStudyActivity() {
+  return api.get('/student/activity/')
 }
 
 // 获取错题统计数据

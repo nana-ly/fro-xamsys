@@ -142,6 +142,14 @@ function getCurrentTime() {
 async function sendMessage() {
   const text = inputText.value.trim()
   if (!text || isLoading.value) return
+  if (!props.questionId) {
+    messages.value.push({
+      role: 'ai',
+      content: '题目信息不存在，请重新打开此功能。',
+      time: getCurrentTime()
+    })
+    return
+  }
 
   // 添加用户消息
   messages.value.push({

@@ -39,8 +39,8 @@
         <div class="question-nav card">
           <span class="nav-label">答题卡：</span>
           <button
-            v-for="(q, index) in questions"
-            :key="q.id"
+            v-for="(q, index) in questions.filter(Boolean)"
+            :key="q.id || index"
             :class="['nav-dot', {
               answered: answers[q.id] !== undefined && answers[q.id] !== '',
               current: currentIndex === index,
@@ -76,8 +76,8 @@
                   'option-item',
                   {
                     selected: selectedAnswer === key,
-                    'correct-answer': showResult && key === currentQuestion.answer,
-                    'wrong-answer': showResult && selectedAnswer === key && key !== currentQuestion.answer
+                    'correct-answer': showResult && key === currentQuestion?.answer,
+                    'wrong-answer': showResult && selectedAnswer === key && key !== currentQuestion?.answer
                   }
                 ]"
               >
@@ -296,7 +296,7 @@ const parsedOptions = computed(() => {
 })
 
 function isChoiceType(type) {
-  return type === 'choice' || type === 'multiple_choice'
+  return type === 'choice' || type === 'multiple' || type === 'multiple_choice'
 }
 
 function isTextType(type) {
@@ -416,7 +416,10 @@ async function loadPracticeQuestions() {
     // 从AI智能出题跳转过来的，解析题目数据
     try {
       const parsed = JSON.parse(aiQuestions)
-      questions.value = Array.isArray(parsed) ? parsed : [parsed]
+      questions.value = JSON.parse(JSON.stringify(Array.isArray(parsed) ? parsed : [parsed]))
+      currentIndex.value = 0
+      console.log('questions.value after assignment:', JSON.stringify(questions.value))
+      console.log('parsed questions:', questions.value)
       practiceInfo.value.name = 'AI 智能出题练习'
     } catch {
       error.value = '解析AI题目数据失败'

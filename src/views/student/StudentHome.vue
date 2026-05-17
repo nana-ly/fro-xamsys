@@ -104,6 +104,16 @@
                 <option value="hard">困难</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>题目数量</label>
+              <input
+                v-model.number="aiParams.count"
+                type="number"
+                min="1"
+                max="30"
+                placeholder="1-30"
+              />
+            </div>
             <div class="form-error" v-if="aiError">{{ aiError }}</div>
             <div class="ai-question-actions">
               <button class="btn btn-outline" @click="showAIQuestion = false">取消</button>
@@ -128,7 +138,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getExamList, getWrongBook, aiGenerateQuestion } from '@/api/student'
+import { getExamList, getWrongBook, aiGenerateQuestion, getStudyActivity } from '@/api/student'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
 
 const router = useRouter()
@@ -144,11 +154,22 @@ const aiResult = ref(null)
 const aiParams = reactive({
   knowledgePoint: '',
   questionType: 'choice',
-  difficulty: 'medium'
+  difficulty: 'medium',
+  count: 5
 })
 
-// 模拟学习数据（后续可从后端获取）
 const studyData = ref([])
+
+// 获取学习活跃度数据
+async function fetchStudyData() {
+  try {
+    const res = await getStudyActivity()
+    studyData.value = res.data || []
+  } catch (error) {
+    console.error('获取学习活跃度数据失败:', error)
+    studyData.value = []
+  }
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return ''
@@ -178,23 +199,6 @@ async function loadWrongCount() {
     console.error('获取错题数量失败:', error)
     wrongCount.value = 0
   }
-}
-
-// 生成模拟学习数据用于热力图展示
-function generateMockStudyData() {
-  const data = []
-  const today = new Date()
-  for (let i = 0; i < 91; i++) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    // 随机生成做题数量
-    const count = Math.random() > 0.4 ? Math.floor(Math.random() * 12) + 1 : 0
-    if (count > 0) {
-      data.push({ date: dateStr, count })
-    }
-  }
-  return data
 }
 
 function startExam(examId) {
@@ -234,12 +238,27 @@ async function generateAIQuestion() {
   aiError.value = ''
   aiLoading.value = true
   try {
-    const res = await aiGenerateQuestion(
-      aiParams.knowledgePoint,
-      aiParams.questionType,
-      aiParams.difficulty
-    )
-    aiResult.value = res.data?.question || null
+    const count = aiParams.count || 1
+    let allQuestions = []
+
+    // 循环调用，每次生成1道题，防止API限流
+    for (let i = 0; i < count; i++) {
+      const res = await aiGenerateQuestion(
+        aiParams.knowledgePoint,
+        aiParams.questionType,
+        aiParams.difficulty,
+        1
+      )
+      const questions = res.data?.questions || res.data?.question ? [res.data?.question] : []
+      allQuestions = allQuestions.concat(questions)
+
+      // 每次请求之间加500ms延迟，防止API限流
+      if (i < count - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+    }
+
+    aiResult.value = allQuestions
   } catch (error) {
     const errMsg = error.response?.data?.error || 'AI生成失败，请稍后重试'
     aiError.value = errMsg
@@ -252,7 +271,7 @@ async function generateAIQuestion() {
 onMounted(() => {
   loadExamList()
   loadWrongCount()
-  studyData.value = generateMockStudyData()
+  fetchStudyData()
 })
 </script>
 

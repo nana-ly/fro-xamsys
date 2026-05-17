@@ -5,14 +5,12 @@
       <p class="heatmap-subtitle">最近{{ totalDays }}天学习记录</p>
     </div>
     <div ref="heatmapChart" class="heatmap-chart"></div>
-    <div v-if="isEmpty" class="heatmap-empty">
-      <p>暂无学习记录，快去刷题吧！📚</p>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount, getCurrentInstance, watch, nextTick, computed } from 'vue'
+import * as echarts from 'echarts'
 
 const props = defineProps({
   studyData: {
@@ -31,7 +29,12 @@ const totalDays = computed(() => {
 })
 
 const isEmpty = computed(() => {
-  return !props.studyData || props.studyData.length === 0
+  if (!props.studyData || props.studyData.length === 0) return true
+  // 检查是否有任何有效的学习记录（count > 0）
+  return props.studyData.every(item => {
+    const count = item.count || item.question_count || 0
+    return count === 0
+  })
 })
 
 // 生成日期范围
@@ -82,9 +85,10 @@ function formatDate(date) {
 }
 
 function initChart() {
+  console.log('initChart called')
+  console.log('heatmapSeriesData:', heatmapSeriesData)
   if (!heatmapChart.value) return
   
-  const echarts = proxy.$echarts
   if (!echarts) return
 
   if (chartInstance) {
@@ -94,6 +98,7 @@ function initChart() {
   chartInstance = echarts.init(heatmapChart.value)
   
   const { seriesData, dateRange } = buildHeatmapData()
+  console.log('seriesData:', seriesData, 'dateRange:', dateRange)
   
   // 按周分组日期
   const weeksData = []
@@ -153,10 +158,10 @@ function initChart() {
       }
     },
     grid: {
-      left: 60,
+      left: 80,
       right: 20,
       top: 30,
-      bottom: 30
+      bottom: 50
     },
     xAxis: {
       type: 'category',
@@ -175,8 +180,9 @@ function initChart() {
         return ''
       }),
       axisLabel: {
-        fontSize: 10,
-        interval: 0
+        fontSize: 9,
+        interval: 0,
+        rotate: 45
       },
       splitArea: {
         show: true
@@ -186,7 +192,8 @@ function initChart() {
       type: 'category',
       data: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
       axisLabel: {
-        fontSize: 11
+        fontSize: 10,
+        margin: 10
       },
       splitArea: {
         show: true
@@ -198,7 +205,7 @@ function initChart() {
       type: 'piecewise',
       orient: 'horizontal',
       left: 'center',
-      bottom: 0,
+      bottom: 10,
       pieces: [
         { min: 0, max: 0, label: '无', color: '#ebedf0' },
         { min: 1, max: 1, label: '1题', color: '#c6e48b' },
@@ -227,6 +234,7 @@ function initChart() {
   }
 
   chartInstance.setOption(option)
+  console.log('option:', option)
 }
 
 // 监听数据变化
