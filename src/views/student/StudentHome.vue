@@ -112,8 +112,11 @@
               </button>
             </div>
             <div v-if="aiResult" class="ai-result">
-              <h4>✅ 生成成功！题目已加入题库</h4>
+              <h4>✅ 生成成功！</h4>
               <p>{{ aiResult.content }}</p>
+              <button class="btn btn-primary ai-practice-btn" @click="goAIPractice">
+                🎯 去练习这个题目
+              </button>
             </div>
           </div>
         </div>
@@ -199,7 +202,7 @@ function startExam(examId) {
 }
 
 function startPractice() {
-  router.push('/student/exam/0?mode=practice')
+  router.push('/student/practice')
 }
 
 function openAIQuestion() {
@@ -207,6 +210,20 @@ function openAIQuestion() {
   aiError.value = ''
   aiParams.knowledgePoint = ''
   showAIQuestion.value = true
+}
+
+function goAIPractice() {
+  if (aiResult.value) {
+    const questions = Array.isArray(aiResult.value) ? aiResult.value : [aiResult.value]
+    router.push({
+      path: '/student/practice',
+      query: {
+        source: 'ai',
+        aiQuestions: JSON.stringify(questions)
+      }
+    })
+  }
+  showAIQuestion.value = false
 }
 
 async function generateAIQuestion() {

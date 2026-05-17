@@ -1,26 +1,22 @@
 <template>
-  <div class="exam-page">
+  <div class="practice-page">
     <div class="container">
       <!-- 返回按钮 -->
       <button class="btn btn-back" @click="$router.push('/student/home')">
         ← 返回主页
       </button>
 
-      <!-- 考试头部信息 -->
-      <div class="exam-header card" v-if="examInfo">
-        <div class="exam-header-left">
-          <h2>{{ examInfo.name || '考试' }}</h2>
-          <div class="exam-meta">
+      <!-- 练习头部信息 -->
+      <div class="practice-header card" v-if="practiceInfo">
+        <div class="practice-header-left">
+          <h2>{{ practiceInfo.name || '练习模式' }}</h2>
+          <div class="practice-meta">
             <span>共 {{ questions.length }} 题</span>
-            <span>总分: {{ examInfo.total_score || 100 }}</span>
           </div>
         </div>
-        <div class="exam-header-right">
-          <div class="timer" :class="{ 'timer--warning': remainingSeconds <= 300 }">
-            ⏱ {{ formatTime(remainingSeconds) }}
-          </div>
-          <button class="btn btn-primary" @click="submitExam">
-            交卷
+        <div class="practice-header-right">
+          <button class="btn btn-primary" @click="submitPractice">
+            提交练习
           </button>
         </div>
       </div>
@@ -28,7 +24,7 @@
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-state card">
         <div class="spinner"></div>
-        <p>加载试卷中...</p>
+        <p>加载题目中...</p>
       </div>
 
       <!-- 错误状态 -->
@@ -45,8 +41,8 @@
           <button
             v-for="(q, index) in questions"
             :key="q.id"
-            :class="['nav-dot', { 
-              answered: answers[q.id] !== undefined && answers[q.id] !== '', 
+            :class="['nav-dot', {
+              answered: answers[q.id] !== undefined && answers[q.id] !== '',
               current: currentIndex === index,
               correct: showResult && answers[q.id] === q.answer,
               wrong: showResult && answers[q.id] !== q.answer
@@ -78,7 +74,7 @@
                 :key="key"
                 :class="[
                   'option-item',
-                  { 
+                  {
                     selected: selectedAnswer === key,
                     'correct-answer': showResult && key === currentQuestion.answer,
                     'wrong-answer': showResult && selectedAnswer === key && key !== currentQuestion.answer
@@ -114,7 +110,7 @@
               <label
                 :class="[
                   'option-item',
-                  { 
+                  {
                     selected: selectedAnswer === 'true',
                     'correct-answer': showResult && 'true' === currentQuestion.answer,
                     'wrong-answer': showResult && selectedAnswer === 'true' && 'true' !== currentQuestion.answer
@@ -128,7 +124,7 @@
               <label
                 :class="[
                   'option-item',
-                  { 
+                  {
                     selected: selectedAnswer === 'false',
                     'correct-answer': showResult && 'false' === currentQuestion.answer,
                     'wrong-answer': showResult && selectedAnswer === 'false' && 'false' !== currentQuestion.answer
@@ -153,7 +149,7 @@
             </div>
           </div>
 
-          <!-- 答案与解析（交卷后显示） -->
+          <!-- 答案与解析（提交后显示） -->
           <div v-if="showResult" class="answer-section">
             <div class="answer-correct">
               <strong>正确答案：</strong>
@@ -181,18 +177,18 @@
         </div>
       </div>
 
-      <!-- 交卷确认弹窗 -->
+      <!-- 提交确认弹窗 -->
       <div v-if="showSubmitModal" class="modal-overlay" @click.self="showSubmitModal = false">
         <div class="confirm-modal card">
-          <h3>确认交卷？</h3>
+          <h3>确认提交练习？</h3>
           <p>已答 {{ answeredCount }} / {{ questions.length }} 题</p>
           <p class="unanswered-warning" v-if="unansweredCount > 0">
             ⚠️ 还有 {{ unansweredCount }} 题未作答
           </p>
           <div class="modal-actions">
-            <button class="btn btn-outline" @click="showSubmitModal = false">继续答题</button>
+            <button class="btn btn-outline" @click="showSubmitModal = false">继续练习</button>
             <button class="btn btn-primary" @click="confirmSubmit" :disabled="submitting">
-              {{ submitting ? '提交中...' : '确认交卷' }}
+              {{ submitting ? '提交中...' : '确认提交' }}
             </button>
           </div>
         </div>
@@ -205,9 +201,11 @@
           <h2>{{ score >= 60 ? '恭喜完成！' : '继续加油！' }}</h2>
           <div class="result-score">{{ score }} 分</div>
           <p>正确 {{ correctCount }} / {{ questions.length }} 题</p>
+          <p v-if="wrongCount > 0" class="wrong-hint">答错的题目已自动加入错题本 📝</p>
           <div class="modal-actions">
             <button class="btn btn-outline" @click="reviewAnswers">查看解析</button>
-            <button class="btn btn-primary" @click="$router.push('/student/home')">返回首页</button>
+            <button class="btn btn-outline" @click="$router.push('/student/wrong-book')">去错题本</button>
+            <button class="btn btn-primary" @click="goBack">返回首页</button>
           </div>
         </div>
       </div>
@@ -224,31 +222,31 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
-import { getExamDetail, startExam, submitExam as submitExamApi } from '@/api/student'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getQuestionBank, addWrongQuestion } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
-const examId = route.params.id || '0'
+const router = useRouter()
 
 const loading = ref(false)
 const error = ref('')
-const examInfo = ref(null)
+const practiceInfo = ref(null)
 const questions = ref([])
 const answers = ref({})
 const currentIndex = ref(0)
-const remainingSeconds = ref(3600)
 const showSubmitModal = ref(false)
 const showResultModal = ref(false)
 const submitting = ref(false)
 const showResult = ref(false)
 const score = ref(0)
 const correctCount = ref(0)
+const wrongCount = ref(0)
 const showAIModal = ref(false)
 const aiQuestion = ref(null)
+const addingWrongIds = ref(new Set())
 
-let timerInterval = null
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
 
 const selectedAnswer = computed({
@@ -316,24 +314,6 @@ function typeLabel(type) {
   return map[type] || type
 }
 
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-function startTimer() {
-  if (timerInterval) clearInterval(timerInterval)
-  timerInterval = setInterval(() => {
-    if (remainingSeconds.value > 0) {
-      remainingSeconds.value--
-    } else {
-      clearInterval(timerInterval)
-      confirmSubmit()
-    }
-  }, 1000)
-}
-
 function saveAnswer(value) {
   if (!currentQuestion.value) return
   answers.value[currentQuestion.value.id] = value
@@ -356,7 +336,7 @@ function nextQuestion() {
   if (currentIndex.value < questions.value.length - 1) currentIndex.value++
 }
 
-function submitExam() {
+function submitPractice() {
   showSubmitModal.value = true
 }
 
@@ -364,22 +344,49 @@ async function confirmSubmit() {
   showSubmitModal.value = false
   submitting.value = true
 
-  try {
-    // 构建提交答案格式
-    const answerList = questions.value.map(q => ({
-      question_id: q.id,
-      answer: answers.value[q.id] || ''
-    }))
-    const res = await submitExamApi(examId, answerList)
-    score.value = res.data?.score || 0
-    correctCount.value = res.data?.correct || 0
-    showResultModal.value = true
-    showResult.value = true
-    clearInterval(timerInterval)
-  } catch (err) {
-    error.value = '提交失败：' + (err.response?.data?.error || '网络错误')
-  } finally {
-    submitting.value = false
+  // 本地评分
+  calculateScore()
+  showResultModal.value = true
+  showResult.value = true
+
+  // 将答错的题添加到错题本
+  await addWrongQuestionsToBook()
+
+  submitting.value = false
+}
+
+function calculateScore() {
+  let correct = 0
+  let wrong = 0
+  questions.value.forEach(q => {
+    const userAnswer = String(answers.value[q.id] || '').trim()
+    const correctAnswer = String(q.answer).trim()
+    if (userAnswer === correctAnswer) {
+      correct++
+    } else {
+      wrong++
+    }
+  })
+  correctCount.value = correct
+  wrongCount.value = wrong
+  score.value = questions.value.length > 0 ? Math.round((correct / questions.value.length) * 100) : 0
+}
+
+async function addWrongQuestionsToBook() {
+  const wrongQuestions = questions.value.filter(q => {
+    const userAnswer = String(answers.value[q.id] || '').trim()
+    const correctAnswer = String(q.answer).trim()
+    return userAnswer !== correctAnswer
+  })
+
+  for (const q of wrongQuestions) {
+    if (addingWrongIds.value.has(q.id)) continue
+    addingWrongIds.value.add(q.id)
+    try {
+      await addWrongQuestion(q.id)
+    } catch (err) {
+      console.error(`添加错题 ${q.id} 失败:`, err)
+    }
   }
 }
 
@@ -392,38 +399,111 @@ function openAIQuestion(question) {
   showAIModal.value = true
 }
 
-async function loadExam() {
+function goBack() {
+  router.push('/student/home')
+}
+
+async function loadPracticeQuestions() {
   loading.value = true
   error.value = ''
+  practiceInfo.value = { name: '练习模式' }
 
-  try {
-    const res = await getExamDetail(examId)
-    examInfo.value = res.data?.exam || res.data
-    questions.value = res.data?.questions || []
-    if (examInfo.value?.duration) {
-      remainingSeconds.value = examInfo.value.duration * 60
+  // 检查是否从AI出题跳转过来
+  const sourceQuery = route.query.source
+  const aiQuestions = route.query.aiQuestions
+
+  if (sourceQuery === 'ai' && aiQuestions) {
+    // 从AI智能出题跳转过来的，解析题目数据
+    try {
+      const parsed = JSON.parse(aiQuestions)
+      questions.value = Array.isArray(parsed) ? parsed : [parsed]
+      practiceInfo.value.name = 'AI 智能出题练习'
+    } catch {
+      error.value = '解析AI题目数据失败'
+      loading.value = false
+      return
     }
-    // 调用开始考试接口，创建 ongoing 记录
-    await startExam(examId)
-  } catch (err) {
-    error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
+  } else {
+    // 从题库加载题目
+    try {
+      const res = await getQuestionBank({ limit: 10 })
+      const data = res.data
+      if (Array.isArray(data)) {
+        questions.value = data
+      } else if (data?.results) {
+        questions.value = data.results
+      } else if (data?.questions) {
+        questions.value = data.questions
+      } else {
+        questions.value = []
+      }
+    } catch (err) {
+      // 题库API失败，使用模拟题目
+      console.error('题库加载失败，使用默认题目:', err)
+      questions.value = getMockQuestions()
+    }
   }
-  loading.value = false
 
-  startTimer()
+  loading.value = false
+}
+
+function getMockQuestions() {
+  return [
+    {
+      id: 1,
+      question_type: 'choice',
+      content: 'Python中列表推导式的基本语法是什么？',
+      options: '{"A": "[x for x in iterable]", "B": "for x in iterable: [x]", "C": "list(for x in iterable)", "D": "{x for x in iterable}"}',
+      answer: 'A',
+      analysis: '列表推导式语法为 [expression for item in iterable]',
+      difficulty: 2
+    },
+    {
+      id: 2,
+      question_type: 'true_false',
+      content: 'Python中的字典是有序集合。',
+      options: '',
+      answer: 'true',
+      analysis: 'Python 3.7+ 中字典保持插入顺序',
+      difficulty: 1
+    },
+    {
+      id: 3,
+      question_type: 'multiple_choice',
+      content: '以下哪些是Python的不可变类型？',
+      options: '{"A": "int", "B": "list", "C": "tuple", "D": "str"}',
+      answer: 'A,C,D',
+      analysis: 'int, tuple, str 是不可变类型，list是可变类型',
+      difficulty: 2
+    },
+    {
+      id: 4,
+      question_type: 'fill_blank',
+      content: 'Python中用于定义函数的关键字是 ____。',
+      options: '',
+      answer: 'def',
+      analysis: '使用 def 关键字定义函数',
+      difficulty: 1
+    },
+    {
+      id: 5,
+      question_type: 'choice',
+      content: '以下哪个不是Python的内置数据类型？',
+      options: '{"A": "list", "B": "array", "C": "tuple", "D": "dict"}',
+      answer: 'B',
+      analysis: 'array 不是Python内置类型，需要从 array 模块导入',
+      difficulty: 2
+    }
+  ]
 }
 
 onMounted(() => {
-  loadExam()
-})
-
-onBeforeUnmount(() => {
-  if (timerInterval) clearInterval(timerInterval)
+  loadPracticeQuestions()
 })
 </script>
 
 <style scoped>
-.exam-page {
+.practice-page {
   padding: 20px;
   max-width: 800px;
   margin: 0 auto;
@@ -453,19 +533,19 @@ onBeforeUnmount(() => {
   background: #ecf5ff;
 }
 
-.exam-header {
+.practice-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
 }
 
-.exam-header h2 {
+.practice-header h2 {
   margin: 0;
   font-size: 1.2em;
 }
 
-.exam-meta {
+.practice-meta {
   font-size: 0.85em;
   color: #888;
   margin-top: 4px;
@@ -473,25 +553,10 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
-.exam-header-right {
+.practice-header-right {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.timer {
-  font-size: 1.4em;
-  font-weight: 700;
-  color: #333;
-}
-
-.timer--warning {
-  color: #e74c3c;
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  50% { opacity: 0.5; }
 }
 
 .loading-state, .error-state {
@@ -714,17 +779,24 @@ onBeforeUnmount(() => {
   margin: 10px 0;
 }
 
+.wrong-hint {
+  color: #e67e22;
+  font-size: 0.85em;
+  margin-top: 8px;
+}
+
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   margin-top: 20px;
 }
 
 @media (max-width: 768px) {
-  .exam-page { padding: 12px; }
-  .exam-header { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .exam-header-right { width: 100%; justify-content: space-between; }
+  .practice-page { padding: 12px; }
+  .practice-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .practice-header-right { width: 100%; justify-content: flex-end; }
   .option-item { padding: 10px 12px; }
 }
 </style>
