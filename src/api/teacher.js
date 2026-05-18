@@ -287,7 +287,7 @@ export const aiGenerateQuestion = (data) => {
         url: '/ai/generate/',
         method: 'post',
         data,
-        timeout: 30000
+        timeout: 30000  // 单题 30s 足够
     })
 }
 

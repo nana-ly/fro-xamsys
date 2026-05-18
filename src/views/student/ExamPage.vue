@@ -69,10 +69,11 @@
           <div class="question-body">
             <h3 class="question-content">
               {{ currentIndex + 1 }}. {{ currentQuestion.content }}
+              <span v-if="currentQuestion.question_type === 'multiple_choice'" class="multi-hint">（多选题）</span>
             </h3>
 
-            <!-- 选择题 -->
-            <div v-if="isChoiceType(currentQuestion.question_type)" class="options-list">
+            <!-- 单选题（点击即判断） -->
+            <div v-if="currentQuestion.question_type === 'choice'" class="options-list">
               <label
                 v-for="(opt, key) in parsedOptions"
                 :key="key"
@@ -85,23 +86,7 @@
                   }
                 ]"
               >
-                <input
-                  v-if="currentQuestion.question_type === 'choice'"
-                  type="radio"
-                  :name="'q_' + currentQuestion.id"
-                  :value="key"
-                  v-model="selectedAnswer"
-                  @change="handleSelect(key)"
-                  :disabled="isRevealed(currentQuestion.id)"
-                />
-                <input
-                  v-else
-                  type="checkbox"
-                  :value="key"
-                  :checked="selectedAnswers.includes(key)"
-                  @change="toggleMultiple(key)"
-                  :disabled="isRevealed(currentQuestion.id)"
-                />
+                <input type="radio" :name="'q_' + currentQuestion.id" :value="key" v-model="selectedAnswer" @change="handleSelect(key)" :disabled="isRevealed(currentQuestion.id)" />
                 <span class="option-key">{{ key }}</span>
                 <span class="option-text">{{ opt }}</span>
                 <span v-if="isRevealed(currentQuestion.id) && key === currentQuestion.answer" class="check-mark">✓</span>
@@ -109,58 +94,74 @@
               </label>
             </div>
 
-            <!-- 判断题 -->
-            <div v-if="currentQuestion.question_type === 'true_false'" class="options-list">
+            <!-- 多选题（checkbox + 提交本题按钮） -->
+            <div v-if="currentQuestion.question_type === 'multiple_choice'" class="options-list">
               <label
+                v-for="(opt, key) in parsedOptions"
+                :key="key"
                 :class="[
                   'option-item',
                   { 
-                    selected: selectedAnswer === 'true',
-                    'correct-answer': isRevealed(currentQuestion.id) && 'true' === currentQuestion.answer,
-                    'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswer === 'true' && 'true' !== currentQuestion.answer
+                    'option-checked': selectedAnswers.includes(key),
+                    'correct-answer': isRevealed(currentQuestion.id) && key === currentQuestion.answer,
+                    'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswers.includes(key) && key !== currentQuestion.answer
                   }
                 ]"
               >
-                <input type="radio" :name="'q_' + currentQuestion.id" value="true" v-model="selectedAnswer" @change="handleSelect('true')" :disabled="isRevealed(currentQuestion.id)" />
+                <input type="checkbox" :value="key" :checked="selectedAnswers.includes(key)" @change="toggleMultiple(key)" :disabled="isRevealed(currentQuestion.id)" />
+                <span class="option-key">{{ key }}</span>
+                <span class="option-text">{{ opt }}</span>
+                <span v-if="isRevealed(currentQuestion.id) && key === currentQuestion.answer" class="check-mark">✓</span>
+                <span v-if="isRevealed(currentQuestion.id) && selectedAnswers.includes(key) && key !== currentQuestion.answer" class="x-mark">✗</span>
+              </label>
+              <button v-if="!isRevealed(currentQuestion.id)" class="btn btn-primary btn-sm" @click="submitMultiSelect" :disabled="selectedAnswers.length === 0">
+                提交本题
+              </button>
+            </div>
+
+            <!-- 判断题 -->
+            <div v-if="currentQuestion.question_type === 'true_false'" class="options-list">
+              <label
+                :class="['option-item', { selected: selectedAnswer === '正确', 'correct-answer': isRevealed(currentQuestion.id) && isAnswerCorrect('正确', currentQuestion.answer, 'true_false'), 'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswer === '正确' && !isAnswerCorrect('正确', currentQuestion.answer, 'true_false') }]"
+              >
+                <input type="radio" :name="'judge_' + currentQuestion.id" value="正确" v-model="selectedAnswer" @change="handleSelect('正确')" :disabled="isRevealed(currentQuestion.id)" />
                 <span class="option-key">✓</span>
                 <span class="option-text">正确</span>
               </label>
               <label
-                :class="[
-                  'option-item',
-                  { 
-                    selected: selectedAnswer === 'false',
-                    'correct-answer': isRevealed(currentQuestion.id) && 'false' === currentQuestion.answer,
-                    'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswer === 'false' && 'false' !== currentQuestion.answer
-                  }
-                ]"
+                :class="['option-item', { selected: selectedAnswer === '错误', 'correct-answer': isRevealed(currentQuestion.id) && isAnswerCorrect('错误', currentQuestion.answer, 'true_false'), 'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswer === '错误' && !isAnswerCorrect('错误', currentQuestion.answer, 'true_false') }]"
               >
-                <input type="radio" :name="'q_' + currentQuestion.id" value="false" v-model="selectedAnswer" @change="handleSelect('false')" :disabled="isRevealed(currentQuestion.id)" />
+                <input type="radio" :name="'judge_' + currentQuestion.id" value="错误" v-model="selectedAnswer" @change="handleSelect('错误')" :disabled="isRevealed(currentQuestion.id)" />
                 <span class="option-key">✗</span>
                 <span class="option-text">错误</span>
               </label>
             </div>
 
-            <!-- 填空题/简答题 -->
-            <div v-if="isTextType(currentQuestion.question_type)" class="text-input-area">
-              <textarea
-                v-model="textAnswer"
-                :placeholder="currentQuestion.question_type === 'fill_blank' ? '请输入答案...' : '请输入你的回答...'"
-                rows="4"
-                @input="handleTextInput"
-                :disabled="isRevealed(currentQuestion.id)"
-              ></textarea>
+            <!-- 填空题 -->
+            <div v-if="currentQuestion.question_type === 'fill_blank'" class="text-input-area">
+              <textarea v-model="textAnswer" placeholder="请输入答案，多空用分号隔开..." rows="3" :disabled="isRevealed(currentQuestion.id)"></textarea>
+              <button v-if="!isRevealed(currentQuestion.id)" class="btn btn-primary btn-sm" style="margin-top: 8px;" @click="submitFillBlank" :disabled="!textAnswer.trim()">
+                提交本题
+              </button>
+            </div>
+
+            <!-- 简答题 -->
+            <div v-if="currentQuestion.question_type === 'essay'" class="text-input-area">
+              <textarea v-model="textAnswer" placeholder="请输入你的回答..." rows="4" :disabled="isRevealed(currentQuestion.id)"></textarea>
+              <button v-if="!isRevealed(currentQuestion.id)" class="btn btn-primary btn-sm" style="margin-top: 8px;" @click="submitFillBlank" :disabled="!textAnswer.trim()">
+                提交本题
+              </button>
             </div>
           </div>
 
-          <!-- 答案与解析（答题后立即显示） -->
+          <!-- 答案与解析 -->
           <div v-if="isRevealed(currentQuestion.id)" class="answer-section">
             <div :class="['answer-badge', selectedIsCorrect ? 'correct' : 'wrong']">
               {{ selectedIsCorrect ? '✅ 回答正确' : '❌ 回答错误' }}
             </div>
             <div class="answer-correct">
               <strong>正确答案：</strong>
-              <span>{{ currentQuestion.answer }}</span>
+              <span>{{ formatAnswer(currentQuestion.answer, currentQuestion.question_type) }}</span>
             </div>
             <div class="answer-analysis" v-if="currentQuestion.analysis">
               <strong>解析：</strong>
@@ -230,7 +231,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getExamDetail, startExam, submitExam as submitExamApi, getPracticeQuestions, submitPracticeAnswers, savePracticeRecord } from '@/api/student'
+import { getExamDetail, startExam, submitExam as submitExamApi, getPracticeQuestions, submitPracticeAnswers, savePracticeRecord, addWrongQuestion } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -258,12 +259,55 @@ let timerInterval = null
 const isExamMode = computed(() => route.query.mode !== 'practice')
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
 
+// 统一答案比较函数（兼容各题型）
+function isAnswerCorrect(studentAnswer, correctAnswer, questionType) {
+  const sa = String(studentAnswer || '').trim()
+  const ca = String(correctAnswer || '').trim()
+  if (!sa || !ca) return false
+
+  if (questionType === 'fill_blank') {
+    // 支持多空：用分号分隔，逐个比较
+    const splitMulti = (s) => s.split(/[;；]/).map(x => x.trim().toLowerCase())
+    const sParts = splitMulti(sa)
+    const cParts = splitMulti(ca)
+    if (sParts.length !== cParts.length) return sa.toLowerCase() === ca.toLowerCase()
+    return sParts.every((p, i) => p === cParts[i] || p === `(${i + 1})${cParts[i]}`)
+  }
+  if (questionType === 'multiple_choice') {
+    const sort = (s) => s.split(',').map(x => x.trim()).filter(Boolean).sort().join(',')
+    return sort(sa) === sort(ca)
+  }
+  if (questionType === 'true_false') {
+    // 兼容：DB可能存"A"/"B"（键值）或"正确"/"错误"或"true"/"false"
+    const normJudge = (v) => {
+      if (v === 'A' || v === '正确' || v === 'true' || v === 'True') return '正确'
+      if (v === 'B' || v === '错误' || v === 'false' || v === 'False') return '错误'
+      return v
+    }
+    return normJudge(sa) === normJudge(ca)
+  }
+  // choice、essay 等：直接比较
+  return sa === ca
+}
+
+// 友好显示正确答案（判断题映射 A→正确、B→错误）
+function formatAnswer(answer, questionType) {
+  if (questionType === 'true_false') {
+    if (answer === 'A') return '正确'
+    if (answer === 'B') return '错误'
+    // 已经是中文格式或英文格式
+    const map = { 'true': '正确', 'True': '正确', 'false': '错误', 'False': '错误', '正确': '正确', '错误': '错误' }
+    return map[answer] || answer
+  }
+  return answer
+}
+
 // 当前题目是否已显示反馈
 const currentRevealed = computed(() => revealedQuestions.value.has(currentQuestion.value?.id))
 // 当前题目选择的答案是否正确
 const selectedIsCorrect = computed(() => {
   if (!currentQuestion.value || !currentRevealed.value) return false
-  return String(answers.value[currentQuestion.value.id] || '').trim() === String(currentQuestion.value.answer || '').trim()
+  return isAnswerCorrect(answers.value[currentQuestion.value.id], currentQuestion.value.answer, currentQuestion.value.question_type)
 })
 
 const selectedAnswer = computed({
@@ -375,6 +419,26 @@ function toggleMultiple(key) {
   answers.value[currentQuestion.value.id] = newAnswers.sort().join(',')
 }
 
+function submitMultiSelect() {
+  if (!currentQuestion.value || isRevealed(currentQuestion.value.id)) return
+  // 多选题：提交时才揭示答案
+  if (!isExamMode.value) {
+    const newSet = new Set(revealedQuestions.value)
+    newSet.add(currentQuestion.value.id)
+    revealedQuestions.value = newSet
+  }
+}
+
+function submitFillBlank() {
+  if (!currentQuestion.value || isRevealed(currentQuestion.value.id)) return
+  answers.value[currentQuestion.value.id] = textAnswer.value
+  if (!isExamMode.value) {
+    const newSet = new Set(revealedQuestions.value)
+    newSet.add(currentQuestion.value.id)
+    revealedQuestions.value = newSet
+  }
+}
+
 function handleTextInput() {
   if (!currentQuestion.value || isRevealed(currentQuestion.value.id)) return
   answers.value[currentQuestion.value.id] = textAnswer.value
@@ -397,22 +461,24 @@ async function confirmSubmit() {
   submitting.value = true
 
   if (!isExamMode.value) {
-    // 练习模式：本地计算 + 保存做题记录
+    // 练习模式：本地计算 + 保存做题记录 + 添加错题
     const details = []
     questions.value.forEach(q => {
-      const studentAnswer = String(answers.value[q.id] || '').trim()
-      const correctAnswer = String(q.answer || '').trim()
-      const isCorrect = studentAnswer === correctAnswer
+      const studentAnswer = String(answers.value[q.id] || '')
+      const correctAnswer = String(q.answer || '')
+      const isCorrect = isAnswerCorrect(studentAnswer, correctAnswer, q.question_type)
       details.push({ q, studentAnswer, correctAnswer, isCorrect })
     })
 
     calculateScore()
 
-    // 异步保存做题记录
+    const sourceType = route.query.source === 'ai' ? 'ai' : 'main'
+
+    // 保存做题记录 和 错题
     for (const d of details) {
       try {
         await savePracticeRecord({
-          source_type: route.query.source === 'ai' ? 'ai' : 'main',
+          source_type: sourceType,
           question_id: d.q.id,
           question_content: d.q.content || '',
           question_type: d.q.question_type || '',
@@ -422,6 +488,13 @@ async function confirmSubmit() {
           knowledge_point: d.q.knowledge_point || ''
         })
       } catch { /* 静默失败 */ }
+
+      // 答错的题加入错题本
+      if (!d.isCorrect) {
+        try {
+          await addWrongQuestion(d.q.id, sourceType, d.studentAnswer)
+        } catch { /* 静默失败 */ }
+      }
     }
 
     showResultModal.value = true
@@ -453,7 +526,7 @@ async function confirmSubmit() {
 function calculateScore() {
   let correct = 0
   questions.value.forEach(q => {
-    if (String(answers.value[q.id]).trim() === String(q.answer).trim()) {
+    if (isAnswerCorrect(answers.value[q.id], q.answer, q.question_type)) {
       correct++
     }
   })
@@ -519,6 +592,13 @@ async function loadExam() {
         questions.value = getMockQuestions()
       }
     }
+    // 归一化：如果 multiple_choice 的答案只有单字符，降级为单选题
+    questions.value = questions.value.map(q => {
+      if (q.question_type === 'multiple_choice' && q.answer && q.answer.length <= 1 && !q.answer.includes(',')) {
+        return { ...q, question_type: 'choice' }
+      }
+      return q
+    })
     // 练习模式设置计时器（不限时，仅显示经过时间）
     remainingSeconds.value = 9999  // 实际上不会用到倒计时结束
   }
@@ -544,7 +624,7 @@ function getMockQuestions() {
       question_type: 'true_false',
       content: 'Python中的字典是有序集合。',
       options: '',
-      answer: 'true',
+      answer: '正确',
       analysis: 'Python 3.7+ 中字典保持插入顺序',
       difficulty: 1
     },
@@ -750,9 +830,20 @@ onBeforeUnmount(() => {
   background: #ecf5ff;
 }
 
+.multi-hint {
+  font-size: 0.7em;
+  color: #e67e22;
+  font-weight: 400;
+}
+
 .option-item.selected {
   border-color: #409eff;
   background: #d9ecff;
+}
+
+.option-item.option-checked {
+  border-color: #409eff;
+  background: #e3f0ff;
 }
 
 .option-item.correct-answer {

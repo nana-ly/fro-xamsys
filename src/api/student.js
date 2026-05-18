@@ -71,9 +71,13 @@ export function getWrongBook(params = {}) {
   return api.get('/student/wrongbook/', { params })
 }
 
-// 手动添加错题
-export function addWrongQuestion(questionId) {
-  return api.post('/student/wrongbook/add/', { question_id: questionId })
+// 手动添加错题（支持 source_type 和 wrong_answer）
+export function addWrongQuestion(questionId, sourceType = 'main', wrongAnswer = '') {
+  return api.post('/student/wrongbook/add/', {
+    question_id: questionId,
+    source_type: sourceType,
+    wrong_answer: wrongAnswer
+  })
 }
 
 // 标记/取消标记已掌握

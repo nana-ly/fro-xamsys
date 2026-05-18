@@ -9,7 +9,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, getCurrentInstance, watch, nextTick, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -18,8 +18,6 @@ const props = defineProps({
     default: () => []
   }
 })
-
-const { proxy } = getCurrentInstance()
 const heatmapChart = ref(null)
 let chartInstance = null
 
@@ -85,11 +83,7 @@ function formatDate(date) {
 }
 
 function initChart() {
-  console.log('initChart called')
-  console.log('heatmapSeriesData:', heatmapSeriesData)
   if (!heatmapChart.value) return
-  
-  if (!echarts) return
 
   if (chartInstance) {
     chartInstance.dispose()

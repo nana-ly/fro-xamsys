@@ -189,7 +189,7 @@
           <!-- 多选题 -->
           <el-checkbox-group
               v-if="questionForm.type === 'multiple'"
-              v-model="questionForm.answer">
+              v-model="questionForm.answerArray">
             <el-checkbox
                 v-for="option in questionForm.options"
                 :key="option.key"
@@ -274,6 +274,9 @@
           <el-input-number v-model="aiForm.count" :min="1" :max="30" />
         </el-form-item>
       </el-form>
+      <div v-if="aiProgress" class="ai-result-box">
+        <el-alert :title="aiProgress" type="info" show-icon :closable="false" />
+      </div>
       <div v-if="aiResult" class="ai-result-box">
         <el-alert :title="aiResult" type="success" show-icon :closable="false" />
       </div>
@@ -316,6 +319,7 @@ const aiDialogVisible = ref(false)
 const aiLoading = ref(false)
 const aiResult = ref('')
 const aiError = ref('')
+const aiProgress = ref('')
 const aiForm = reactive({
   knowledgePoint: '',
   questionType: 'choice',
@@ -347,7 +351,8 @@ const questionForm = reactive({
     { key: 'C', value: '' },
     { key: 'D', value: '' }
   ],
-  answer: '',
+  answer: '',       // 单选题/判断题等用字符串；多选题存逗号分隔如"A,B,C"
+  answerArray: [],  // 多选题专用于el-checkbox-group的数组
   explanation: '',
   difficulty: 'medium',
   score: 5
@@ -363,6 +368,9 @@ const questionRules = {
 }
 
 // 获取题目列表
+const DIFFICULTY_MAP = { 'easy': 1, 'medium': 3, 'hard': 5 }
+const TYPE_MAP = { 'single': 'choice', 'multiple': 'multiple_choice', 'judge': 'true_false', 'blank': 'fill_blank', 'essay': 'essay' }
+
 const fetchQuestionList = async () => {
   loading.value = true
   try {
@@ -370,8 +378,8 @@ const fetchQuestionList = async () => {
       page: pagination.current,
       page_size: pagination.size,
       keyword: searchForm.keyword,
-      type: searchForm.type,
-      difficulty: searchForm.difficulty
+      question_type: TYPE_MAP[searchForm.type] || searchForm.type,
+      difficulty: DIFFICULTY_MAP[searchForm.difficulty] || searchForm.difficulty
     })
 
     questionList.value = res.results
@@ -444,9 +452,11 @@ const handleEdit = async (row) => {
     const detail = await getQuestionDetail(row.id)
 
     // 填充表单数据，映射字段名
-    questionForm.type = TYPE_BACKEND_TO_FRONT[detail.question_type] || detail.question_type
+    const frontType = TYPE_BACKEND_TO_FRONT[detail.question_type] || detail.question_type
+    questionForm.type = frontType
     questionForm.content = detail.content || ''
     questionForm.answer = detail.answer || ''
+    questionForm.answerArray = frontType === 'multiple' ? (detail.answer || '').split(',').filter(Boolean).sort() : []
     questionForm.explanation = detail.analysis || ''
     questionForm.difficulty = DIFFICULTY_BACKEND_TO_FRONT[detail.difficulty] || 'medium'
     questionForm.score = 5  // 后端没有 score 字段，设置默认值
@@ -511,10 +521,15 @@ const handleSubmit = async () => {
 
   submitLoading.value = true
   try {
+    // 多选题：把 answerArray 转成逗号分隔字符串
+    const answer = questionForm.type === 'multiple'
+      ? questionForm.answerArray.sort().join(',')
+      : questionForm.answer
+
     const data = {
       type: questionForm.type,
       content: questionForm.content,
-      answer: questionForm.answer,
+      answer: answer,
       explanation: questionForm.explanation,
       difficulty: questionForm.difficulty,
       score: questionForm.score
@@ -556,6 +571,7 @@ const resetForm = () => {
     { key: 'D', value: '' }
   ]
   questionForm.answer = ''
+  questionForm.answerArray = []
   questionForm.explanation = ''
   questionForm.difficulty = 'medium'
   questionForm.score = 5
@@ -584,25 +600,37 @@ const handleAIGenerate = async () => {
   aiLoading.value = true
   aiResult.value = ''
   aiError.value = ''
-  try {
-    const res = await aiGenerateQuestion({
-      knowledge_point: aiForm.knowledgePoint,
-      question_type: aiForm.questionType,
-      difficulty: aiForm.difficulty,
-      count: aiForm.count,
-      target_library: 'main'
-    })
-    const msg = res.message || `成功生成 ${(res.questions || []).length} 道题目`
+  aiProgress.value = ''
+
+  const total = aiForm.count
+  let successCount = 0
+
+  for (let i = 1; i <= total; i++) {
+    aiProgress.value = `正在生成第 ${i}/${total} 题...`
+    try {
+      const res = await aiGenerateQuestion({
+        knowledge_point: aiForm.knowledgePoint,
+        question_type: aiForm.questionType,
+        difficulty: aiForm.difficulty,
+        count: 1,
+        target_library: 'main'
+      })
+      successCount++
+    } catch (error) {
+      aiError.value = `第 ${i} 题生成失败，已生成 ${successCount} 道`
+      ElMessage.warning(`第 ${i} 题生成失败`)
+      break
+    }
+  }
+
+  aiProgress.value = ''
+  if (successCount > 0) {
+    const msg = `成功生成 ${successCount} 道题目`
     aiResult.value = msg
     ElMessage.success(msg)
     fetchQuestionList()
-  } catch (error) {
-    const errMsg = error.response?.data?.error || error.message || 'AI 出题失败'
-    aiError.value = errMsg
-    ElMessage.error(errMsg)
-  } finally {
-    aiLoading.value = false
   }
+  aiLoading.value = false
 }
 
 const resetAIDialog = () => {

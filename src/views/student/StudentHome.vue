@@ -155,7 +155,10 @@
               <label>出题数量</label>
               <input v-model.number="aiParams.count" type="number" min="1" max="10" />
             </div>
-            <div class="form-error" v-if="aiError">{{ aiError }}</div>
+            <div class="form-error" v-if="aiError && !aiLoading">{{ aiError }}</div>
+            <div class="form-info" v-if="aiLoading" style="color:#409eff;font-size:0.85em;margin-bottom:12px;text-align:center;">
+              {{ aiError || '准备中...' }}
+            </div>
             <div class="ai-question-actions">
               <button class="btn btn-outline" @click="showAIQuestion = false">取消</button>
               <button class="btn btn-primary" @click="generateAIQuestion" :disabled="aiLoading">
@@ -303,29 +306,36 @@ async function generateAIQuestion() {
   }
   aiError.value = ''
   aiLoading.value = true
-  try {
-    const res = await aiGenerateQuestion(
-      aiParams.knowledgePoint,
-      aiParams.questionType,
-      aiParams.difficulty,
-      aiParams.count,
-      'ai_practice'
-    )
-    const questions = res.data?.questions || []
-    if (questions.length > 0) {
-      // 存到 localStorage 供 ExamPage 读取
-      localStorage.setItem('aiPracticeQuestions', JSON.stringify(questions))
-      showAIQuestion.value = false
-      router.push('/student/exam/0?mode=practice&source=ai')
-    } else {
-      aiError.value = 'AI 出题结果为 0 道，请重试'
+
+  const total = aiParams.count || 1
+  const allQuestions = []
+
+  for (let i = 1; i <= total; i++) {
+    aiError.value = `正在生成第 ${i}/${total} 题...`
+    try {
+      const res = await aiGenerateQuestion(
+        aiParams.knowledgePoint,
+        aiParams.questionType,
+        aiParams.difficulty,
+        1,  // 每次只生成 1 题
+        'ai_practice'
+      )
+      const questions = res.data?.questions || []
+      allQuestions.push(...questions)
+    } catch (error) {
+      const errMsg = error.response?.data?.error || 'AI生成失败，请稍后重试'
+      aiError.value = `第 ${i} 题生成失败：${errMsg}`
+      break
     }
-  } catch (error) {
-    const errMsg = error.response?.data?.error || 'AI生成失败，请稍后重试'
-    aiError.value = errMsg
-  } finally {
-    aiLoading.value = false
   }
+
+  if (allQuestions.length > 0) {
+    localStorage.setItem('aiPracticeQuestions', JSON.stringify(allQuestions))
+    showAIQuestion.value = false
+    router.push('/student/exam/0?mode=practice&source=ai')
+  }
+
+  aiLoading.value = false
 }
 
 onMounted(() => {
