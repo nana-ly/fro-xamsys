@@ -19,8 +19,8 @@
           <div class="timer" :class="{ 'timer--warning': remainingSeconds <= 300 }">
             ⏱ {{ formatTime(remainingSeconds) }}
           </div>
-          <button v-if="isExamMode" class="btn btn-primary" @click="submitExam">
-            交卷
+          <button class="btn btn-primary" @click="submitExam">
+            {{ isExamMode ? '交卷' : '完成练习' }}
           </button>
         </div>
       </div>
@@ -80,8 +80,8 @@
                   'option-item',
                   { 
                     selected: selectedAnswer === key,
-                    'correct-answer': showResult && key === currentQuestion.answer,
-                    'wrong-answer': showResult && selectedAnswer === key && key !== currentQuestion.answer
+                    'correct-answer': isRevealed(currentQuestion.id) && key === currentQuestion.answer,
+                    'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswer === key && key !== currentQuestion.answer
                   }
                 ]"
               >
@@ -91,8 +91,8 @@
                   :name="'q_' + currentQuestion.id"
                   :value="key"
                   v-model="selectedAnswer"
-                  @change="saveAnswer(key)"
-                  :disabled="showResult"
+                  @change="handleSelect(key)"
+                  :disabled="isRevealed(currentQuestion.id)"
                 />
                 <input
                   v-else
@@ -100,12 +100,12 @@
                   :value="key"
                   :checked="selectedAnswers.includes(key)"
                   @change="toggleMultiple(key)"
-                  :disabled="showResult"
+                  :disabled="isRevealed(currentQuestion.id)"
                 />
                 <span class="option-key">{{ key }}</span>
                 <span class="option-text">{{ opt }}</span>
-                <span v-if="showResult && key === currentQuestion.answer" class="check-mark">✓</span>
-                <span v-if="showResult && selectedAnswer === key && key !== currentQuestion.answer" class="x-mark">✗</span>
+                <span v-if="isRevealed(currentQuestion.id) && key === currentQuestion.answer" class="check-mark">✓</span>
+                <span v-if="isRevealed(currentQuestion.id) && selectedAnswer === key && key !== currentQuestion.answer" class="x-mark">✗</span>
               </label>
             </div>
 
@@ -116,12 +116,12 @@
                   'option-item',
                   { 
                     selected: selectedAnswer === 'true',
-                    'correct-answer': showResult && 'true' === currentQuestion.answer,
-                    'wrong-answer': showResult && selectedAnswer === 'true' && 'true' !== currentQuestion.answer
+                    'correct-answer': isRevealed(currentQuestion.id) && 'true' === currentQuestion.answer,
+                    'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswer === 'true' && 'true' !== currentQuestion.answer
                   }
                 ]"
               >
-                <input type="radio" :name="'q_' + currentQuestion.id" value="true" v-model="selectedAnswer" @change="saveAnswer('true')" :disabled="showResult" />
+                <input type="radio" :name="'q_' + currentQuestion.id" value="true" v-model="selectedAnswer" @change="handleSelect('true')" :disabled="isRevealed(currentQuestion.id)" />
                 <span class="option-key">✓</span>
                 <span class="option-text">正确</span>
               </label>
@@ -130,12 +130,12 @@
                   'option-item',
                   { 
                     selected: selectedAnswer === 'false',
-                    'correct-answer': showResult && 'false' === currentQuestion.answer,
-                    'wrong-answer': showResult && selectedAnswer === 'false' && 'false' !== currentQuestion.answer
+                    'correct-answer': isRevealed(currentQuestion.id) && 'false' === currentQuestion.answer,
+                    'wrong-answer': isRevealed(currentQuestion.id) && selectedAnswer === 'false' && 'false' !== currentQuestion.answer
                   }
                 ]"
               >
-                <input type="radio" :name="'q_' + currentQuestion.id" value="false" v-model="selectedAnswer" @change="saveAnswer('false')" :disabled="showResult" />
+                <input type="radio" :name="'q_' + currentQuestion.id" value="false" v-model="selectedAnswer" @change="handleSelect('false')" :disabled="isRevealed(currentQuestion.id)" />
                 <span class="option-key">✗</span>
                 <span class="option-text">错误</span>
               </label>
@@ -147,14 +147,17 @@
                 v-model="textAnswer"
                 :placeholder="currentQuestion.question_type === 'fill_blank' ? '请输入答案...' : '请输入你的回答...'"
                 rows="4"
-                @input="saveAnswer(textAnswer)"
-                :disabled="showResult"
+                @input="handleTextInput"
+                :disabled="isRevealed(currentQuestion.id)"
               ></textarea>
             </div>
           </div>
 
-          <!-- 答案与解析（练习模式或已提交后显示） -->
-          <div v-if="showResult || !isExamMode" class="answer-section">
+          <!-- 答案与解析（答题后立即显示） -->
+          <div v-if="isRevealed(currentQuestion.id)" class="answer-section">
+            <div :class="['answer-badge', selectedIsCorrect ? 'correct' : 'wrong']">
+              {{ selectedIsCorrect ? '✅ 回答正确' : '❌ 回答错误' }}
+            </div>
             <div class="answer-correct">
               <strong>正确答案：</strong>
               <span>{{ currentQuestion.answer }}</span>
@@ -219,6 +222,7 @@
       :question-id="aiQuestion?.id"
       :question-content="aiQuestion?.content"
       :question-options="aiQuestion?.options"
+      :source-type="route.query.source === 'ai' ? 'ai' : 'main'"
     />
   </div>
 </template>
@@ -226,7 +230,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getExamDetail, startExam, submitExam as submitExamApi } from '@/api/student'
+import { getExamDetail, startExam, submitExam as submitExamApi, getPracticeQuestions, submitPracticeAnswers, savePracticeRecord } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -237,6 +241,7 @@ const error = ref('')
 const examInfo = ref(null)
 const questions = ref([])
 const answers = ref({})
+const revealedQuestions = ref(new Set())  // 已答题并显示反馈的题目ID集合
 const currentIndex = ref(0)
 const remainingSeconds = ref(3600)
 const showSubmitModal = ref(false)
@@ -252,6 +257,14 @@ let timerInterval = null
 
 const isExamMode = computed(() => route.query.mode !== 'practice')
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
+
+// 当前题目是否已显示反馈
+const currentRevealed = computed(() => revealedQuestions.value.has(currentQuestion.value?.id))
+// 当前题目选择的答案是否正确
+const selectedIsCorrect = computed(() => {
+  if (!currentQuestion.value || !currentRevealed.value) return false
+  return String(answers.value[currentQuestion.value.id] || '').trim() === String(currentQuestion.value.answer || '').trim()
+})
 
 const selectedAnswer = computed({
   get: () => {
@@ -338,18 +351,33 @@ function startTimer() {
   }, 1000)
 }
 
-function saveAnswer(value) {
-  if (!currentQuestion.value) return
+function isRevealed(qId) {
+  return isExamMode.value ? showResult.value : revealedQuestions.value.has(qId)
+}
+
+function handleSelect(value) {
+  if (!currentQuestion.value || isRevealed(currentQuestion.value.id)) return
   answers.value[currentQuestion.value.id] = value
+  // 选择后立即显示反馈（练习模式即时反馈，考试模式不显示）
+  if (!isExamMode.value) {
+    const newSet = new Set(revealedQuestions.value)
+    newSet.add(currentQuestion.value.id)
+    revealedQuestions.value = newSet
+  }
 }
 
 function toggleMultiple(key) {
-  if (!currentQuestion.value) return
+  if (!currentQuestion.value || isRevealed(currentQuestion.value.id)) return
   const current = selectedAnswers.value
   const newAnswers = current.includes(key)
     ? current.filter(k => k !== key)
     : [...current, key]
   answers.value[currentQuestion.value.id] = newAnswers.sort().join(',')
+}
+
+function handleTextInput() {
+  if (!currentQuestion.value || isRevealed(currentQuestion.value.id)) return
+  answers.value[currentQuestion.value.id] = textAnswer.value
 }
 
 function prevQuestion() {
@@ -369,8 +397,33 @@ async function confirmSubmit() {
   submitting.value = true
 
   if (!isExamMode.value) {
-    // 练习模式，直接计算
+    // 练习模式：本地计算 + 保存做题记录
+    const details = []
+    questions.value.forEach(q => {
+      const studentAnswer = String(answers.value[q.id] || '').trim()
+      const correctAnswer = String(q.answer || '').trim()
+      const isCorrect = studentAnswer === correctAnswer
+      details.push({ q, studentAnswer, correctAnswer, isCorrect })
+    })
+
     calculateScore()
+
+    // 异步保存做题记录
+    for (const d of details) {
+      try {
+        await savePracticeRecord({
+          source_type: route.query.source === 'ai' ? 'ai' : 'main',
+          question_id: d.q.id,
+          question_content: d.q.content || '',
+          question_type: d.q.question_type || '',
+          student_answer: d.studentAnswer,
+          correct_answer: d.correctAnswer,
+          is_correct: d.isCorrect,
+          knowledge_point: d.q.knowledge_point || ''
+        })
+      } catch { /* 静默失败 */ }
+    }
+
     showResultModal.value = true
     showResult.value = true
     submitting.value = false
@@ -429,28 +482,50 @@ async function loadExam() {
       if (examInfo.value?.duration) {
         remainingSeconds.value = examInfo.value.duration * 60
       }
-      // 调用开始考试接口，创建 ongoing 记录
       await startExam(examId)
     } catch (err) {
       error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
     }
   } else {
-    // 练习模式，加载一些示例题目或从题库获取
+    // 练习模式
     examInfo.value = { name: '练习模式', total_score: 100 }
-    try {
-      // 尝试从API获取
-      const res = await getExamDetail(0)
-      questions.value = res.data?.questions || []
-    } catch {
-      // 模拟题目
-      questions.value = getMockQuestions()
+    const source = route.query.source
+    const knowledgePoint = route.query.knowledge_point
+    const questionType = route.query.question_type
+    const count = parseInt(route.query.count || '10')
+
+    // 优先加载 AI 出题结果
+    if (source === 'ai') {
+      const stored = localStorage.getItem('aiPracticeQuestions')
+      if (stored) {
+        try {
+          questions.value = JSON.parse(stored)
+          localStorage.removeItem('aiPracticeQuestions')
+        } catch {
+          questions.value = []
+        }
+      }
     }
+
+    if (questions.value.length === 0) {
+      try {
+        // 从题库随机抽题
+        const params = { count }
+        if (knowledgePoint) params.knowledge_point = knowledgePoint
+        if (questionType) params.question_type = questionType
+        const res = await getPracticeQuestions(params)
+        questions.value = res.data?.questions || []
+      } catch {
+        questions.value = getMockQuestions()
+      }
+    }
+    // 练习模式设置计时器（不限时，仅显示经过时间）
+    remainingSeconds.value = 9999  // 实际上不会用到倒计时结束
   }
   loading.value = false
 
-  if (isExamMode.value) {
-    startTimer()
-  }
+  // 两种模式都启动计时器
+  startTimer()
 }
 
 function getMockQuestions() {
@@ -746,6 +821,23 @@ onBeforeUnmount(() => {
 .answer-analysis p { margin: 4px 0 0; }
 
 .ai-btn { margin-top: 10px; }
+
+.answer-badge {
+  font-size: 0.95em;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+.answer-badge.correct {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.answer-badge.wrong {
+  background: #fef0f0;
+  color: #c62828;
+}
 
 .question-footer {
   display: flex;

@@ -280,3 +280,21 @@ export const exportScores = (params) => {
         responseType: 'blob'
     })
 }
+
+// ========== AI 出题 ==========
+export const aiGenerateQuestion = (data) => {
+    return request({
+        url: '/ai/generate/',
+        method: 'post',
+        data,
+        timeout: 30000
+    })
+}
+
+// ========== 题库详情 ==========
+export const getQuestionDetail = (id) => {
+    return request({
+        url: `/question-bank/${id}/`,
+        method: 'get'
+    })
+}

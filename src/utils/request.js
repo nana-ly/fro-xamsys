@@ -9,12 +9,16 @@ const request = axios.create({
     withCredentials: true
 })
 
-// 请求拦截器：从 localStorage 读 CSRF Token
+// 请求拦截器：从 localStorage 读 token 和 CSRF Token
 request.interceptors.request.use(
     config => {
-        const token = localStorage.getItem('csrfToken')
-        if (token) {
-            config.headers['X-CSRFToken'] = token
+        const csrfToken = localStorage.getItem('csrfToken')
+        if (csrfToken) {
+            config.headers['X-CSRFToken'] = csrfToken
+        }
+        const token = localStorage.getItem('token')
+        if (token && token !== 'true') {
+            config.headers['Authorization'] = `Token ${token}`
         }
         return config
     },

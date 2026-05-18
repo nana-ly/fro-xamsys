@@ -94,6 +94,10 @@ const props = defineProps({
   questionOptions: {
     type: [String, Object],
     default: ''
+  },
+  sourceType: {
+    type: String,
+    default: 'main'
   }
 })
 
@@ -156,7 +160,7 @@ async function sendMessage() {
   // 调用AI接口
   isLoading.value = true
   try {
-    const res = await aiAskQuestion(props.questionId, text)
+    const res = await aiAskQuestion(props.questionId, text, props.sourceType)
     messages.value.push({
       role: 'ai',
       content: res.data?.answer || '抱歉，AI暂时无法回答这个问题。',

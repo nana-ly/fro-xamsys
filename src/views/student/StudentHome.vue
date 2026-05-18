@@ -35,12 +35,26 @@
         <h3>📝 练习模式</h3>
         <p class="section-desc">随时随地刷题练习，即时查看答案和解析</p>
         <div class="practice-actions">
-          <button class="btn btn-primary" @click="startPractice">
-            🎯 开始练习
+          <button class="btn btn-primary" @click="openPracticeDialog">
+            📚 从题库选题
           </button>
           <button class="btn btn-outline" @click="openAIQuestion">
             🤖 AI 智能出题
           </button>
+        </div>
+      </div>
+
+      <!-- 最近做题记录 -->
+      <div class="recent-records-section card" v-if="recentRecords.length > 0">
+        <h3>📊 最近做题记录</h3>
+        <div class="records-list">
+          <div v-for="rec in recentRecords" :key="rec.id" class="record-item">
+            <span class="record-content">{{ rec.question_content.substring(0, 40) }}{{ rec.question_content.length > 40 ? '...' : '' }}</span>
+            <span :class="['record-status', rec.is_correct ? 'correct' : 'wrong']">
+              {{ rec.is_correct ? '✓ 正确' : '✗ 错误' }}
+            </span>
+            <span class="record-time">{{ rec.created_at?.substring(0, 10) }}</span>
+          </div>
         </div>
       </div>
 
@@ -80,6 +94,39 @@
           </div>
         </div>
 
+        <!-- 从题库选题弹窗 -->
+        <div v-if="showPracticeDialog" class="ai-question-modal-overlay" @click.self="showPracticeDialog = false">
+          <div class="ai-question-modal card">
+            <h3>📚 从题库选题练习</h3>
+            <div class="form-group">
+              <label>知识点（可选）</label>
+              <input v-model="practiceParams.knowledgePoint" type="text" placeholder="留空则随机出题" />
+            </div>
+            <div class="form-group">
+              <label>题型（可选）</label>
+              <select v-model="practiceParams.questionType">
+                <option value="">全部题型</option>
+                <option value="choice">单选题</option>
+                <option value="multiple_choice">多选题</option>
+                <option value="true_false">判断题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="essay">简答题</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>题目数量</label>
+              <input v-model.number="practiceParams.count" type="number" min="1" max="50" />
+            </div>
+            <div class="form-error" v-if="practiceError">{{ practiceError }}</div>
+            <div class="ai-question-actions">
+              <button class="btn btn-outline" @click="showPracticeDialog = false">取消</button>
+              <button class="btn btn-primary" @click="startPracticeFromBank" :disabled="practiceLoading">
+                {{ practiceLoading ? '加载中...' : '开始练习' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- AI出题弹窗 -->
         <div v-if="showAIQuestion" class="ai-question-modal-overlay" @click.self="showAIQuestion = false">
           <div class="ai-question-modal card">
@@ -104,16 +151,16 @@
                 <option value="hard">困难</option>
               </select>
             </div>
+            <div class="form-group">
+              <label>出题数量</label>
+              <input v-model.number="aiParams.count" type="number" min="1" max="10" />
+            </div>
             <div class="form-error" v-if="aiError">{{ aiError }}</div>
             <div class="ai-question-actions">
               <button class="btn btn-outline" @click="showAIQuestion = false">取消</button>
               <button class="btn btn-primary" @click="generateAIQuestion" :disabled="aiLoading">
-                {{ aiLoading ? '生成中...' : '生成题目' }}
+                {{ aiLoading ? '生成中...' : '生成并练习' }}
               </button>
-            </div>
-            <div v-if="aiResult" class="ai-result">
-              <h4>✅ 生成成功！题目已加入题库</h4>
-              <p>{{ aiResult.content }}</p>
             </div>
           </div>
         </div>
@@ -125,7 +172,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getExamList, getWrongBook, aiGenerateQuestion } from '@/api/student'
+import { getExamList, getWrongBook, aiGenerateQuestion, getPracticeRecords, getStudyActivity } from '@/api/student'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
 
 const router = useRouter()
@@ -133,19 +180,29 @@ const userName = ref(localStorage.getItem('userName') || '同学')
 const examList = ref([])
 const examLoading = ref(false)
 const wrongCount = ref(0)
+const studyData = ref([])
+const recentRecords = ref([])
+
+// AI 出题
 const showAIQuestion = ref(false)
 const aiLoading = ref(false)
 const aiError = ref('')
-const aiResult = ref(null)
-
 const aiParams = reactive({
   knowledgePoint: '',
   questionType: 'choice',
-  difficulty: 'medium'
+  difficulty: 'medium',
+  count: 5
 })
 
-// 模拟学习数据（后续可从后端获取）
-const studyData = ref([])
+// 从题库选题
+const showPracticeDialog = ref(false)
+const practiceLoading = ref(false)
+const practiceError = ref('')
+const practiceParams = reactive({
+  knowledgePoint: '',
+  questionType: '',
+  count: 10
+})
 
 function formatDate(dateStr) {
   if (!dateStr) return ''
@@ -170,42 +227,72 @@ async function loadWrongCount() {
   try {
     const res = await getWrongBook()
     const data = res.data || []
-    wrongCount.value = data.length
+    wrongCount.value = Array.isArray(data) ? data.length : (data.results || []).length
   } catch (error) {
     console.error('获取错题数量失败:', error)
     wrongCount.value = 0
   }
 }
 
-// 生成模拟学习数据用于热力图展示
-function generateMockStudyData() {
-  const data = []
-  const today = new Date()
-  for (let i = 0; i < 91; i++) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    // 随机生成做题数量
-    const count = Math.random() > 0.4 ? Math.floor(Math.random() * 12) + 1 : 0
-    if (count > 0) {
-      data.push({ date: dateStr, count })
-    }
+async function loadStudyData() {
+  try {
+    const res = await getStudyActivity()
+    studyData.value = res.data || []
+  } catch (error) {
+    console.error('获取学习活跃度失败:', error)
+    studyData.value = []
   }
-  return data
+}
+
+async function loadRecentRecords() {
+  try {
+    const res = await getPracticeRecords({ page: 1, page_size: 10 })
+    recentRecords.value = res.data?.results || []
+  } catch (error) {
+    console.error('获取做题记录失败:', error)
+    recentRecords.value = []
+  }
 }
 
 function startExam(examId) {
   router.push(`/student/exam/${examId}`)
 }
 
-function startPractice() {
-  router.push('/student/exam/0?mode=practice')
+// ===== 从题库选题 =====
+function openPracticeDialog() {
+  practiceError.value = ''
+  practiceParams.knowledgePoint = ''
+  practiceParams.questionType = ''
+  practiceParams.count = 10
+  showPracticeDialog.value = true
 }
 
+async function startPracticeFromBank() {
+  practiceLoading.value = true
+  practiceError.value = ''
+  try {
+    // 先跳转再通过 URL 参数传筛选条件
+    const params = new URLSearchParams()
+    params.set('mode', 'practice')
+    if (practiceParams.knowledgePoint.trim()) params.set('knowledge_point', practiceParams.knowledgePoint.trim())
+    if (practiceParams.questionType) params.set('question_type', practiceParams.questionType)
+    params.set('count', String(practiceParams.count))
+    router.push(`/student/exam/0?${params.toString()}`)
+  } catch (error) {
+    practiceError.value = '加载失败，请重试'
+  } finally {
+    practiceLoading.value = false
+    showPracticeDialog.value = false
+  }
+}
+
+// ===== AI 智能出题 =====
 function openAIQuestion() {
-  aiResult.value = null
   aiError.value = ''
   aiParams.knowledgePoint = ''
+  aiParams.questionType = 'choice'
+  aiParams.difficulty = 'medium'
+  aiParams.count = 5
   showAIQuestion.value = true
 }
 
@@ -220,13 +307,22 @@ async function generateAIQuestion() {
     const res = await aiGenerateQuestion(
       aiParams.knowledgePoint,
       aiParams.questionType,
-      aiParams.difficulty
+      aiParams.difficulty,
+      aiParams.count,
+      'ai_practice'
     )
-    aiResult.value = res.data?.question || null
+    const questions = res.data?.questions || []
+    if (questions.length > 0) {
+      // 存到 localStorage 供 ExamPage 读取
+      localStorage.setItem('aiPracticeQuestions', JSON.stringify(questions))
+      showAIQuestion.value = false
+      router.push('/student/exam/0?mode=practice&source=ai')
+    } else {
+      aiError.value = 'AI 出题结果为 0 道，请重试'
+    }
   } catch (error) {
     const errMsg = error.response?.data?.error || 'AI生成失败，请稍后重试'
     aiError.value = errMsg
-    aiResult.value = null
   } finally {
     aiLoading.value = false
   }
@@ -235,7 +331,8 @@ async function generateAIQuestion() {
 onMounted(() => {
   loadExamList()
   loadWrongCount()
-  studyData.value = generateMockStudyData()
+  loadStudyData()
+  loadRecentRecords()
 })
 </script>
 
@@ -512,5 +609,57 @@ onMounted(() => {
   .practice-actions {
     flex-direction: column;
   }
+}
+
+.recent-records-section {
+  padding: 20px;
+}
+
+.recent-records-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.1em;
+}
+
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 0.85em;
+}
+
+.record-content {
+  flex: 1;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-status {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.record-status.correct {
+  color: #4caf50;
+}
+
+.record-status.wrong {
+  color: #e74c3c;
+}
+
+.record-time {
+  color: #999;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 </style>
