@@ -90,7 +90,7 @@ const handleCommand = async (command) => {
 
       localStorage.clear()
       ElMessage.success('已退出登录')
-      router.push('/login')
+      router.push('/login?role=teacher')
 
     } catch (error) {
       // 取消操作

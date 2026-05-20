@@ -106,32 +106,26 @@
             </div>
 
             <!-- 判断题 -->
-            <div v-if="currentQuestion.question_type === 'true_false'" class="options-list">
+            <div v-if="currentQuestion.question_type === 'true_false' || currentQuestion.question_type === 'judge'" class="options-list">
               <label
-                :class="[
-                  'option-item',
-                  {
-                    selected: selectedAnswer === 'true',
-                    'correct-answer': showResult && 'true' === currentQuestion.answer,
-                    'wrong-answer': showResult && selectedAnswer === 'true' && 'true' !== currentQuestion.answer
-                  }
-                ]"
+                :class="['option-item', {
+                  selected: selectedAnswer === '正确',
+                  'correct-answer': showResult && isAnswerCorrect('正确', currentQuestion.answer, 'true_false'),
+                  'wrong-answer': showResult && selectedAnswer === '正确' && !isAnswerCorrect('正确', currentQuestion.answer, 'true_false')
+                }]"
               >
-                <input type="radio" :name="'q_' + currentQuestion.id" value="true" v-model="selectedAnswer" @change="saveAnswer('true')" :disabled="showResult" />
+                <input type="radio" :name="'q_' + currentQuestion.id" value="正确" v-model="selectedAnswer" @change="saveAnswer('正确')" :disabled="showResult" />
                 <span class="option-key">✓</span>
                 <span class="option-text">正确</span>
               </label>
               <label
-                :class="[
-                  'option-item',
-                  {
-                    selected: selectedAnswer === 'false',
-                    'correct-answer': showResult && 'false' === currentQuestion.answer,
-                    'wrong-answer': showResult && selectedAnswer === 'false' && 'false' !== currentQuestion.answer
-                  }
-                ]"
+                :class="['option-item', {
+                  selected: selectedAnswer === '错误',
+                  'correct-answer': showResult && isAnswerCorrect('错误', currentQuestion.answer, 'true_false'),
+                  'wrong-answer': showResult && selectedAnswer === '错误' && !isAnswerCorrect('错误', currentQuestion.answer, 'true_false')
+                }]"
               >
-                <input type="radio" :name="'q_' + currentQuestion.id" value="false" v-model="selectedAnswer" @change="saveAnswer('false')" :disabled="showResult" />
+                <input type="radio" :name="'q_' + currentQuestion.id" value="错误" v-model="selectedAnswer" @change="saveAnswer('错误')" :disabled="showResult" />
                 <span class="option-key">✗</span>
                 <span class="option-text">错误</span>
               </label>
@@ -153,7 +147,7 @@
           <div v-if="showResult" class="answer-section">
             <div class="answer-correct">
               <strong>正确答案：</strong>
-              <span>{{ currentQuestion.answer }}</span>
+              <span>{{ formatAnswer(currentQuestion.answer, currentQuestion.question_type) }}</span>
             </div>
             <div class="answer-analysis" v-if="currentQuestion.analysis">
               <strong>解析：</strong>
@@ -224,7 +218,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getQuestionBank, addWrongQuestion } from '@/api/student'
+import { getPracticeQuestions, addWrongQuestion, savePracticeRecord } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -308,10 +302,42 @@ function typeLabel(type) {
     choice: '单选题',
     multiple_choice: '多选题',
     true_false: '判断题',
+    judge: '判断题',
     fill_blank: '填空题',
     essay: '简答题'
   }
   return map[type] || type
+}
+
+// ========== 答案比较 ==========
+function isAnswerCorrect(studentAnswer, correctAnswer, questionType) {
+  const sa = String(studentAnswer || '').trim()
+  const ca = String(correctAnswer || '').trim()
+  if (!sa || !ca) return false
+  if (questionType === 'fill_blank') {
+    return sa.toLowerCase() === ca.toLowerCase()
+  }
+  if (questionType === 'multiple_choice' || questionType === 'multiple') {
+    const sort = (s) => s.split(',').map(x => x.trim()).filter(Boolean).sort().join(',')
+    return sort(sa) === sort(ca)
+  }
+  if (questionType === 'true_false' || questionType === 'judge') {
+    const norm = (v) => {
+      if (v === 'A' || v === '正确' || v === 'true' || v === 'True') return '正确'
+      if (v === 'B' || v === '错误' || v === 'false' || v === 'False') return '错误'
+      return v
+    }
+    return norm(sa) === norm(ca)
+  }
+  return sa === ca
+}
+
+function formatAnswer(answer, questionType) {
+  if (questionType === 'true_false' || questionType === 'judge') {
+    const map = { 'A': '正确', 'B': '错误', 'true': '正确', 'True': '正确', 'false': '错误', 'False': '错误', '正确': '正确', '错误': '错误' }
+    return map[answer] || answer
+  }
+  return answer
 }
 
 function saveAnswer(value) {
@@ -340,17 +366,49 @@ function submitPractice() {
   showSubmitModal.value = true
 }
 
+const PRACTICE_RESULT_KEY = 'practice_result'
+
 async function confirmSubmit() {
   showSubmitModal.value = false
   submitting.value = true
 
-  // 本地评分
   calculateScore()
   showResultModal.value = true
   showResult.value = true
 
-  // 将答错的题添加到错题本
-  await addWrongQuestionsToBook()
+  // 保存到 sessionStorage 防止刷新丢失
+  sessionStorage.setItem(PRACTICE_RESULT_KEY, JSON.stringify({
+    score: score.value,
+    correctCount: correctCount.value,
+    wrongCount: wrongCount.value,
+    showResult: true,
+    answers: answers.value,
+    questions: questions.value
+  }))
+
+  // 保存做题记录 + 添加错题
+  const sourceType = route.query.source === 'ai' ? 'ai' : 'main'
+  for (const q of questions.value) {
+    const studentAnswer = String(answers.value[q.id] || '')
+    const correctAnswer = String(q.answer || '')
+    const isCorrect = isAnswerCorrect(studentAnswer, correctAnswer, q.question_type)
+    try {
+      await savePracticeRecord({
+        source_type: sourceType,
+        question_id: q.id,
+        question_content: q.content || '',
+        question_type: q.question_type || '',
+        student_answer: studentAnswer,
+        correct_answer: correctAnswer,
+        is_correct: isCorrect,
+        knowledge_point: q.knowledge_point || ''
+      })
+    } catch { /* 静默失败 */ }
+    if (!isCorrect && !addingWrongIds.value.has(q.id)) {
+      addingWrongIds.value.add(q.id)
+      try { await addWrongQuestion(q.id, sourceType, studentAnswer) } catch { /* 静默 */ }
+    }
+  }
 
   submitting.value = false
 }
@@ -359,9 +417,7 @@ function calculateScore() {
   let correct = 0
   let wrong = 0
   questions.value.forEach(q => {
-    const userAnswer = String(answers.value[q.id] || '').trim()
-    const correctAnswer = String(q.answer).trim()
-    if (userAnswer === correctAnswer) {
+    if (isAnswerCorrect(answers.value[q.id], q.answer, q.question_type)) {
       correct++
     } else {
       wrong++
@@ -370,24 +426,6 @@ function calculateScore() {
   correctCount.value = correct
   wrongCount.value = wrong
   score.value = questions.value.length > 0 ? Math.round((correct / questions.value.length) * 100) : 0
-}
-
-async function addWrongQuestionsToBook() {
-  const wrongQuestions = questions.value.filter(q => {
-    const userAnswer = String(answers.value[q.id] || '').trim()
-    const correctAnswer = String(q.answer).trim()
-    return userAnswer !== correctAnswer
-  })
-
-  for (const q of wrongQuestions) {
-    if (addingWrongIds.value.has(q.id)) continue
-    addingWrongIds.value.add(q.id)
-    try {
-      await addWrongQuestion(q.id)
-    } catch (err) {
-      console.error(`添加错题 ${q.id} 失败:`, err)
-    }
-  }
 }
 
 function reviewAnswers() {
@@ -408,23 +446,32 @@ async function loadPracticeQuestions() {
   error.value = ''
   practiceInfo.value = { name: '练习模式' }
 
-  // 检查是否从AI出题跳转过来
-  const sourceQuery = route.query.source
-  const aiQuestions = route.query.aiQuestions
-
-  if (sourceQuery === 'ai') {
-    // 从AI智能出题跳转过来的，从 sessionStorage 读取题目数据
+  // 恢复已提交的结果（防止刷新丢失）
+  const saved = sessionStorage.getItem(PRACTICE_RESULT_KEY)
+  if (saved) {
     try {
-      const aiQuestionsData = sessionStorage.getItem('aiQuestions')
-      console.log('raw from session:', aiQuestionsData)
-      if (!aiQuestionsData) {
-        error.value = '未找到AI题目数据'
+      const r = JSON.parse(saved)
+      if (r.showResult) {
+        questions.value = r.questions || []
+        answers.value = r.answers || {}
+        score.value = r.score
+        correctCount.value = r.correctCount
+        wrongCount.value = r.wrongCount
+        showResult.value = true
+        showResultModal.value = false  // 不显示弹窗，直接看逐题解析
         loading.value = false
         return
       }
-      const parsed = JSON.parse(aiQuestionsData)
-      questions.value = parsed
-      console.log('practice questions:', JSON.stringify(questions.value))
+    } catch { sessionStorage.removeItem(PRACTICE_RESULT_KEY) }
+  }
+
+  const sourceQuery = route.query.source
+
+  if (sourceQuery === 'ai') {
+    try {
+      const data = sessionStorage.getItem('aiQuestions')
+      if (!data) { error.value = '未找到AI题目数据'; loading.value = false; return }
+      questions.value = JSON.parse(data)
       sessionStorage.removeItem('aiQuestions')
       currentIndex.value = 0
       practiceInfo.value.name = 'AI 智能出题练习'
@@ -434,24 +481,22 @@ async function loadPracticeQuestions() {
       return
     }
   } else {
-    // 从题库加载题目
+    // 从题库抽题（带筛选）
     try {
-      const res = await getQuestionBank({ limit: 10 })
-      const data = res.data
-      if (Array.isArray(data)) {
-        questions.value = data
-      } else if (data?.results) {
-        questions.value = data.results
-      } else if (data?.questions) {
-        questions.value = data.questions
-      } else {
-        questions.value = []
-      }
-    } catch (err) {
-      // 题库API失败，使用模拟题目
-      console.error('题库加载失败，使用默认题目:', err)
+      const params = { count: 10 }
+      if (route.query.knowledge_point) params.knowledge_point = route.query.knowledge_point
+      if (route.query.question_type) params.question_type = route.query.question_type
+      if (route.query.count) params.count = parseInt(route.query.count)
+      const res = await getPracticeQuestions(params)
+      questions.value = res.data?.questions || []
+    } catch {
       questions.value = getMockQuestions()
     }
+  }
+
+  // 答案显示友好化
+  if (questions.value.length > 0 && !sourceQuery) {
+    practiceInfo.value.name = '随堂练习'
   }
 
   loading.value = false

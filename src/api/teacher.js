@@ -293,6 +293,7 @@ export const aiGenerateQuestion = (data) => {
     return request({
         url: '/student/ai/generate_question/',
         method: 'post',
-        data
+        data,
+        timeout: 60000  // AI调用较慢，设60s超时
     })
 }

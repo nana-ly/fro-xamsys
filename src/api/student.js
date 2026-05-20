@@ -126,6 +126,26 @@ export function getQuestionBank(params = {}) {
   return api.get('/question-bank/', { params })
 }
 
+// 练习模式 - 从题库随机抽题（返回含答案和解析）
+export function getPracticeQuestions(params = {}) {
+  return api.get('/student/practice/', { params })
+}
+
+// 练习模式 - 提交练习答案
+export function submitPracticeAnswers(answers) {
+  return api.post('/student/practice/', { answers })
+}
+
+// 保存单题做题记录
+export function savePracticeRecord(data) {
+  return api.post('/student/practice/records/', data)
+}
+
+// 获取做题记录
+export function getPracticeRecords(params = {}) {
+  return api.get('/student/practice/records/', { params })
+}
+
 // ===================== 学习统计相关 =====================
 
 // 获取考试记录（用于学习统计）

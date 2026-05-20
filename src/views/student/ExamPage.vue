@@ -322,8 +322,47 @@ function formatTime(seconds) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+const TIMER_KEY = 'exam_timer_' + examId
+const ANSWERS_KEY = 'exam_answers_' + examId
+const RESULT_KEY = 'exam_result_' + examId
+
+function saveTimerToStorage() {
+  // 存的是考试开始的绝对时间戳
+  localStorage.setItem(TIMER_KEY, Date.now().toString())
+}
+
+function saveAnswersToStorage() {
+  localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers.value))
+}
+
+function saveResultToStorage() {
+  localStorage.setItem(RESULT_KEY, JSON.stringify({
+    showResult: showResult.value,
+    showResultModal: showResultModal.value,
+    score: score.value,
+    correctCount: correctCount.value
+  }))
+}
+
+function clearExamStorage() {
+  localStorage.removeItem(TIMER_KEY)
+  localStorage.removeItem(ANSWERS_KEY)
+  localStorage.removeItem(RESULT_KEY)
+}
+
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval)
+  // 从 localStorage 恢复计时，防止刷新归零
+  const savedStart = localStorage.getItem(TIMER_KEY)
+  if (savedStart) {
+    const elapsed = Math.floor((Date.now() - parseInt(savedStart)) / 1000)
+    const total = (examInfo.value?.duration || 120) * 60
+    remainingSeconds.value = Math.max(0, total - elapsed)
+    if (remainingSeconds.value <= 0) {
+      confirmSubmit()
+      return
+    }
+  }
   timerInterval = setInterval(() => {
     if (remainingSeconds.value > 0) {
       remainingSeconds.value--
@@ -337,6 +376,7 @@ function startTimer() {
 function saveAnswer(value) {
   if (!currentQuestion.value) return
   answers.value[currentQuestion.value.id] = value
+  saveAnswersToStorage()
 }
 
 function toggleMultiple(key) {
@@ -365,17 +405,30 @@ async function confirmSubmit() {
   submitting.value = true
 
   try {
-    // 构建提交答案格式
     const answerList = questions.value.map(q => ({
       question_id: q.id,
       answer: answers.value[q.id] || ''
     }))
     const res = await submitExamApi(examId, answerList)
-    score.value = res.data?.score || 0
-    correctCount.value = res.data?.correct || 0
-    showResultModal.value = true
+    const data = res.data || {}
+    score.value = data.score || 0
+    correctCount.value = data.correct || 0
+    // 把后端返回的 details 合并回 questions（含 correct_answer 和 analysis）
+    if (data.details) {
+      questions.value = questions.value.map(q => {
+        const detail = data.details.find(d => d.question_id === q.id)
+        if (detail) {
+          return { ...q, answer: detail.correct_answer, analysis: detail.explanation || '' }
+        }
+        return q
+      })
+    }
     showResult.value = true
+    showResultModal.value = true
     clearInterval(timerInterval)
+    clearExamStorage()
+    saveResultToStorage()
+    saveAnswersToStorage()
   } catch (err) {
     error.value = '提交失败：' + (err.response?.data?.error || '网络错误')
   } finally {
@@ -385,6 +438,7 @@ async function confirmSubmit() {
 
 function reviewAnswers() {
   showResultModal.value = false
+  saveResultToStorage()
 }
 
 function openAIQuestion(question) {
@@ -395,6 +449,22 @@ function openAIQuestion(question) {
 async function loadExam() {
   loading.value = true
   error.value = ''
+
+  // 恢复已提交的考试结果
+  const savedResult = localStorage.getItem(RESULT_KEY)
+  const savedAnswers = localStorage.getItem(ANSWERS_KEY)
+  if (savedResult) {
+    try {
+      const r = JSON.parse(savedResult)
+      if (r.showResult) {
+        showResult.value = true
+        showResultModal.value = r.showResultModal
+        score.value = r.score
+        correctCount.value = r.correctCount
+        if (savedAnswers) answers.value = JSON.parse(savedAnswers)
+      }
+    } catch { /* 忽略恢复失败 */ }
+  }
 
   try {
     const res = await getExamDetail(examId)

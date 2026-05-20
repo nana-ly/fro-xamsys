@@ -69,11 +69,11 @@ const selectRole = (role) => {
 
 .role-select-page {
   min-height: 100vh;
-  background: var(--canvas);
+  background: var(--canvas, #faf8f5);
   font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
   display: flex;
   flex-direction: column;
-  color: var(--ink);
+  color: var(--ink, #1a1a2e);
   transition: background 300ms ease, color 300ms ease;
 }
 
@@ -87,13 +87,13 @@ const selectRole = (role) => {
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--muted, #888);
   text-decoration: none;
   transition: color 200ms ease;
 }
 
 .back-link:hover {
-  color: var(--ink);
+  color: var(--ink, #1a1a2e);
 }
 
 .main-content {
@@ -112,7 +112,7 @@ const selectRole = (role) => {
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: var(--ink);
+  color: var(--ink, #1a1a2e);
   margin-bottom: 8px;
   text-align: center;
   letter-spacing: -0.3px;
@@ -120,7 +120,7 @@ const selectRole = (role) => {
 
 .page-subtitle {
   font-size: 15px;
-  color: var(--muted);
+  color: var(--muted, #888);
   margin-bottom: 48px;
   text-align: center;
 }
@@ -134,9 +134,9 @@ const selectRole = (role) => {
 .role-card {
   width: 280px;
   padding: 40px 32px;
-  background: var(--card-bg);
+  background: var(--card-bg, #ffffff);
   border-radius: 12px;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--hairline, #f0f0f0);
   cursor: pointer;
   transition: all 200ms ease;
   text-align: center;
@@ -175,13 +175,13 @@ const selectRole = (role) => {
 .role-title {
   font-size: 22px;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--ink, #1a1a2e);
   margin-bottom: 8px;
 }
 
 .role-desc {
   font-size: 14px;
-  color: var(--muted);
+  color: var(--muted, #888);
   line-height: 1.5;
   margin-bottom: 24px;
 }

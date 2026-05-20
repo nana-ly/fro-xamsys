@@ -157,10 +157,11 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  // 角色权限检查
+  // 角色权限检查（避免多标签页互相干扰）
   const userRole = localStorage.getItem('userRole')
   if (to.meta.role && userRole && to.meta.role !== userRole) {
-    next(userRole === 'teacher' ? '/teacher' : '/student/home')
+    // 角色不匹配时跳转到登录页，而不是切换到另一端页面
+    next('/login')
     return
   }
 

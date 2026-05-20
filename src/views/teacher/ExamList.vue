@@ -23,15 +23,15 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="start_time" label="开始时间" width="160">
+        <el-table-column label="开始时间" width="160">
           <template #default="scope">
-            {{ formatDate(scope.row.start_time, 'YYYY-MM-DD HH:mm') }}
+            {{ formatDate(scope.row.published_at || scope.row.created_at, 'YYYY-MM-DD HH:mm') || '未发布' }}
           </template>
         </el-table-column>
 
-        <el-table-column prop="end_time" label="结束时间" width="160">
+        <el-table-column label="结束时间" width="160">
           <template #default="scope">
-            {{ formatDate(scope.row.end_time, 'YYYY-MM-DD HH:mm') }}
+            {{ calcEndTime(scope.row) || '-' }}
           </template>
         </el-table-column>
 
@@ -93,6 +93,15 @@ const pagination = reactive({
   total: 0
 })
 
+// 计算结束时间 = 发布 + 时长
+function calcEndTime(exam) {
+  const start = exam.published_at || exam.created_at
+  if (!start) return null
+  const d = new Date(start)
+  d.setMinutes(d.getMinutes() + (exam.duration || 0))
+  return formatDate(d.toISOString(), 'YYYY-MM-DD HH:mm')
+}
+
 const fetchExamList = async () => {
   loading.value = true
   try {
@@ -138,20 +147,18 @@ const handleDelete = async (row) => {
 }
 
 const getStatusType = (exam) => {
-  const now = Date.now()
-  const start = new Date(exam.start_time).getTime()
-  const end = new Date(exam.end_time).getTime()
-  if (now < start) return 'info'
-  if (now > end) return 'danger'
-  return 'success'
+  if (!exam.published_at) return 'info'  // 未发布
+  const start = new Date(exam.published_at).getTime()
+  const end = start + (exam.duration || 0) * 60 * 1000
+  if (Date.now() > end) return 'danger'  // 已结束
+  return 'success'  // 进行中
 }
 
 const getStatusName = (exam) => {
-  const now = Date.now()
-  const start = new Date(exam.start_time).getTime()
-  const end = new Date(exam.end_time).getTime()
-  if (now < start) return '未开始'
-  if (now > end) return '已结束'
+  if (!exam.published_at) return '未发布'
+  const start = new Date(exam.published_at).getTime()
+  const end = start + (exam.duration || 0) * 60 * 1000
+  if (Date.now() > end) return '已结束'
   return '进行中'
 }
 

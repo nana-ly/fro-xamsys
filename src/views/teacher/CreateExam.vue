@@ -97,7 +97,7 @@
           </template>
 
           <!-- 已选题目列表 -->
-          <el-table :data="selectedQuestions" border>
+          <el-table :data="selectedQuestions" border max-height="400">
             <el-table-column type="index" label="序号" width="60" />
 
             <el-table-column prop="content" label="题目内容" min-width="300">
@@ -403,9 +403,9 @@ const autoForm = reactive({
   difficultyRatio: [30, 70]
 })
 
-// 计算总分
+// 计算总分（确保数值相加，非字符串拼接）
 const totalScore = computed(() => {
-  return selectedQuestions.value.reduce((sum, q) => sum + q.score, 0)
+  return selectedQuestions.value.reduce((sum, q) => sum + Number(q.score || 0), 0)
 })
 
 // 计算题型分布
@@ -475,7 +475,7 @@ const confirmSelection = () => {
     if (!selectedQuestions.value.find(q => q.id === question.id)) {
       selectedQuestions.value.push({
         ...question,
-        score: question.score || 5
+        score: Number(question.score) || 5
       })
     }
   })
@@ -547,7 +547,7 @@ const confirmAutoGenerate = async () => {
         options: pq.question_detail?.options ?? '',
         answer: pq.question_detail?.answer ?? '',
         difficulty: pq.question_detail?.difficulty ?? 1,
-        score: pq.score || 5
+        score: Number(pq.score) || 5
       }))
       // 切换到编辑模式，后续点击"发布试卷"会更新而非重复创建
       isEdit.value = true
@@ -588,15 +588,10 @@ const handlePublish = async () => {
       // 编辑模式：仅更新元数据，不重复发送题目
       const patchData = {
         name: examForm.title,
-        description: examForm.description,
         duration: Number(examForm.duration) || 60,
         target_class: examForm.classIds[0],
-        pass_score: Number(examForm.passScore) || 60,
         total_score: Number(examForm.totalScore) || 100
       }
-      // 可选字段：有时间值才发送
-      if (examForm.startTime) patchData.start_time = examForm.startTime
-      if (examForm.endTime) patchData.end_time = examForm.endTime
 
       await updateExam(editId.value, patchData)
       await publishPaper(editId.value)
@@ -688,7 +683,7 @@ onMounted(async () => {
         options: pq.question_detail?.options ?? '',
         answer: pq.question_detail?.answer ?? '',
         difficulty: pq.question_detail?.difficulty ?? 1,
-        score: pq.score || 5
+        score: Number(pq.score) || 5
       }))
     } catch (error) {
       ElMessage.error('获取试卷详情失败')

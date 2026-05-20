@@ -63,7 +63,7 @@ function isActive(path) {
 
 function logout() {
   localStorage.clear()
-  router.push('/login')
+  router.push('/login?role=student')
 }
 
 onMounted(() => {

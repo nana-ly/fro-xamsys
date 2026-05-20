@@ -154,11 +154,11 @@ const handleRegister = async () => {
 
 .register-page {
   min-height: 100vh;
-  background: var(--canvas);
+  background: var(--canvas, #faf8f5);
   font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
   display: flex;
   flex-direction: column;
-  color: var(--ink);
+  color: var(--ink, #1a1a2e);
   transition: background 300ms ease, color 300ms ease;
 }
 
@@ -192,10 +192,10 @@ const handleRegister = async () => {
 .auth-card {
   width: 100%;
   max-width: 420px;
-  background: var(--card-bg);
+  background: var(--card-bg, #ffffff);
   border-radius: 12px;
   padding: 36px 32px;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--hairline, #f0f0f0);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   transition: background 300ms ease, border-color 300ms ease;
 }

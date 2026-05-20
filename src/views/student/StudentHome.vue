@@ -46,8 +46,8 @@
         <h3>📝 练习模式</h3>
         <p class="section-desc">随时随地刷题练习，即时查看答案和解析</p>
         <div class="practice-actions">
-          <button class="btn btn-primary" @click="startPractice">
-            🎯 开始练习
+          <button class="btn btn-primary" @click="openPracticeDialog">
+            📚 从题库选题
           </button>
           <button class="btn btn-outline" @click="openAIQuestion">
             🤖 AI 智能出题
@@ -87,6 +87,37 @@
               <button class="btn btn-primary btn-block" @click="startExam(exam.id)">
                 开始考试
               </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 从题库选题弹窗 -->
+        <div v-if="showPracticeDialog" class="ai-question-modal-overlay" @click.self="showPracticeDialog = false">
+          <div class="ai-question-modal card">
+            <h3>📚 从题库选题练习</h3>
+            <div class="form-group">
+              <label>知识点（可选）</label>
+              <input v-model="practiceParams.knowledgePoint" type="text" placeholder="留空则随机出题" />
+            </div>
+            <div class="form-group">
+              <label>题型（可选）</label>
+              <select v-model="practiceParams.questionType">
+                <option value="">全部题型</option>
+                <option value="choice">单选题</option>
+                <option value="multiple_choice">多选题</option>
+                <option value="true_false">判断题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="essay">简答题</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>题目数量</label>
+              <input v-model.number="practiceParams.count" type="number" min="1" max="50" />
+            </div>
+            <div class="form-error" v-if="practiceError">{{ practiceError }}</div>
+            <div class="ai-question-actions">
+              <button class="btn btn-outline" @click="showPracticeDialog = false">取消</button>
+              <button class="btn btn-primary" @click="startPracticeFromBank">开始练习</button>
             </div>
           </div>
         </div>
@@ -172,6 +203,15 @@ const aiParams = reactive({
 
 const studyData = ref([])
 
+// 从题库选题弹窗
+const showPracticeDialog = ref(false)
+const practiceError = ref('')
+const practiceParams = reactive({
+  knowledgePoint: '',
+  questionType: '',
+  count: 10
+})
+
 // 获取学习活跃度数据
 async function fetchStudyData() {
   try {
@@ -217,8 +257,22 @@ function startExam(examId) {
   router.push(`/student/exam/${examId}`)
 }
 
-function startPractice() {
-  router.push('/student/practice')
+function openPracticeDialog() {
+  practiceError.value = ''
+  practiceParams.knowledgePoint = ''
+  practiceParams.questionType = ''
+  practiceParams.count = 10
+  showPracticeDialog.value = true
+}
+
+function startPracticeFromBank() {
+  const params = new URLSearchParams()
+  params.set('mode', 'practice')
+  if (practiceParams.knowledgePoint.trim()) params.set('knowledge_point', practiceParams.knowledgePoint.trim())
+  if (practiceParams.questionType) params.set('question_type', practiceParams.questionType)
+  params.set('count', String(practiceParams.count))
+  showPracticeDialog.value = false
+  router.push(`/student/practice?${params.toString()}`)
 }
 
 function openAIQuestion() {

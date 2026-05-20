@@ -54,7 +54,7 @@
           style="width: 100%"
           v-loading="loading">
 
-        <el-table-column type="index" label="序号" width="60" />
+        <el-table-column type="index" label="序号" width="60" :index="calcIndex" />
 
         <el-table-column prop="content" label="题目内容" min-width="300">
           <template #default="scope">
@@ -62,18 +62,18 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="type" label="题型" width="100">
+        <el-table-column label="题型" width="100">
           <template #default="scope">
-            <el-tag :type="getTypeColor(scope.row.type)">
-              {{ getTypeName(scope.row.type) }}
+            <el-tag :type="getTypeColor(scope.row.question_type)">
+              {{ scope.row.question_type_display || getTypeName(scope.row.question_type) }}
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="difficulty" label="难度" width="100">
+        <el-table-column label="难度" width="100">
           <template #default="scope">
             <el-tag :type="getDifficultyColor(scope.row.difficulty)">
-              {{ getDifficultyName(scope.row.difficulty) }}
+              {{ scope.row.difficulty_display || getDifficultyName(scope.row.difficulty) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -278,12 +278,20 @@
             <el-radio value="hard">困难</el-radio>
           </el-radio-group>
         </el-form-item>
+
+        <el-form-item label="数量" prop="count">
+          <el-input-number v-model="aiForm.count" :min="1" :max="20" />
+        </el-form-item>
+
+        <el-form-item v-if="aiProgress">
+          <el-alert :title="aiProgress" type="info" show-icon :closable="false" />
+        </el-form-item>
       </el-form>
 
       <template #footer>
         <el-button @click="aiDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="aiGenerating" @click="handleAIGenerate">
-          开始生成
+          {{ aiGenerating ? '生成中...' : '开始生成' }}
         </el-button>
       </template>
     </el-dialog>
@@ -344,10 +352,12 @@ const questionForm = reactive({
 // AI出题
 const aiDialogVisible = ref(false)
 const aiGenerating = ref(false)
+const aiProgress = ref('')
 const aiForm = reactive({
   knowledgePoint: '',
   questionType: 'choice',
-  difficulty: 'medium'
+  difficulty: 'medium',
+  count: 5
 })
 
 // 表单验证规则
@@ -359,17 +369,27 @@ const questionRules = {
   score: [{ required: true, message: '请设置分值', trigger: 'blur' }]
 }
 
+// 序号累计（跨页）
+const calcIndex = (idx) => (pagination.current - 1) * pagination.size + idx + 1
+
+// 前端难度/类型 → 后端值
+const DIFFICULTY_MAP = { 'easy': 1, 'medium': 3, 'hard': 5 }
+const TYPE_MAP = { 'single': 'choice', 'multiple': 'multiple_choice', 'judge': 'true_false', 'blank': 'fill_blank', 'essay': 'essay' }
+
 // 获取题目列表
 const fetchQuestionList = async () => {
   loading.value = true
   try {
-    const res = await getQuestionList({
+    const params = {
       page: pagination.current,
       page_size: pagination.size,
-      keyword: searchForm.keyword,
-      type: searchForm.type,
-      difficulty: searchForm.difficulty
-    })
+      ordering: '-created_at',
+      keyword: searchForm.keyword || undefined,
+    }
+    if (searchForm.type) params.question_type = TYPE_MAP[searchForm.type] || searchForm.type
+    if (searchForm.difficulty) params.difficulty = DIFFICULTY_MAP[searchForm.difficulty]
+
+    const res = await getQuestionList(params)
 
     // 映射后端字段到前端表格期望的字段名
     questionList.value = (res.results || []).map(q => ({
@@ -447,7 +467,8 @@ const handleEdit = async (row) => {
     questionForm.content = detail.content || ''
     questionForm.answer = Array.isArray(detail.answer) ? detail.answer : (detail.answer || '')
     questionForm.explanation = detail.analysis || detail.explanation || ''
-    questionForm.difficulty = detail.difficulty || 'medium'
+    const DIFFICULTY_INT_TO_STR = { 1: 'easy', 2: 'easy', 3: 'medium', 4: 'hard', 5: 'hard' }
+    questionForm.difficulty = DIFFICULTY_INT_TO_STR[detail.difficulty] || 'medium'
     questionForm.score = detail.score || 5
 
     // 选择题填充选项
@@ -602,16 +623,26 @@ const getDifficultyName = (difficulty) => {
   const difficultyMap = {
     easy: '简单',
     medium: '中等',
-    hard: '困难'
+    hard: '困难',
+    1: '简单',
+    2: '较简单',
+    3: '中等',
+    4: '较难',
+    5: '困难'
   }
-  return difficultyMap[difficulty] || difficulty
+  return difficultyMap[difficulty] || String(difficulty)
 }
 
 const getDifficultyColor = (difficulty) => {
   const colorMap = {
     easy: 'success',
     medium: 'warning',
-    hard: 'danger'
+    hard: 'danger',
+    1: 'success',
+    2: '',
+    3: 'warning',
+    4: 'danger',
+    5: 'danger'
   }
   return colorMap[difficulty] || ''
 }
@@ -621,10 +652,12 @@ const showAIDialog = () => {
   aiForm.knowledgePoint = ''
   aiForm.questionType = 'choice'
   aiForm.difficulty = 'medium'
+  aiForm.count = 5
+  aiProgress.value = ''
   aiDialogVisible.value = true
 }
 
-// AI生成题目
+// AI生成题目（循环调用，每次1题，避免超时）
 const handleAIGenerate = async () => {
   if (!aiForm.knowledgePoint.trim()) {
     ElMessage.warning('请输入知识点')
@@ -632,22 +665,35 @@ const handleAIGenerate = async () => {
   }
 
   aiGenerating.value = true
-  try {
-    await aiGenerateQuestion({
-      knowledge_point: aiForm.knowledgePoint.trim(),
-      question_type: aiForm.questionType,
-      difficulty: aiForm.difficulty
-    })
+  aiProgress.value = ''
+  let successCount = 0
+  const total = aiForm.count || 1
 
-    ElMessage.success('AI生成题目成功，已自动添加到题库')
+  for (let i = 1; i <= total; i++) {
+    aiProgress.value = `正在生成第 ${i}/${total} 题...`
+    try {
+      await aiGenerateQuestion({
+        knowledge_point: aiForm.knowledgePoint.trim(),
+        question_type: aiForm.questionType,
+        difficulty: aiForm.difficulty,
+        count: 1
+      })
+      successCount++
+    } catch {
+      ElMessage.warning(`第 ${i} 题生成失败`)
+      break
+    }
+  }
+
+  aiProgress.value = ''
+  if (successCount > 0) {
+    ElMessage.success(`成功生成 ${successCount} 道题目`)
     aiDialogVisible.value = false
     fetchQuestionList()
-
-  } catch (error) {
+  } else {
     ElMessage.error('AI生成失败，请重试')
-  } finally {
-    aiGenerating.value = false
   }
+  aiGenerating.value = false
 }
 
 // 页面加载时获取数据

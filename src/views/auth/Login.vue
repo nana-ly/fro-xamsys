@@ -112,6 +112,15 @@ const handleLogin = async () => {
     const user = data.user || data
 
     if (user && user.username) {
+      // 校验角色是否匹配：从 /role-select?role=xxx 过来的用户应该登录对应角色
+      const expectedRole = route.query.role || 'student'
+      if (user.role !== expectedRole) {
+        const roleName = expectedRole === 'teacher' ? '教师' : '学生'
+        loginError.value = `该账号不是${roleName}账号，请使用正确的${roleName}账号登录`
+        loading.value = false
+        return
+      }
+
       localStorage.setItem('token', data.token || data.key || data.csrfToken || 'true')
       localStorage.setItem('csrfToken', data.csrfToken || '')
       localStorage.setItem('userRole', user.role || 'student')
@@ -169,11 +178,11 @@ const handleLogin = async () => {
 
 .login-page {
   min-height: 100vh;
-  background: var(--canvas);
+  background: var(--canvas, #faf8f5);
   font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
   display: flex;
   flex-direction: column;
-  color: var(--ink);
+  color: var(--ink, #1a1a2e);
   transition: background 300ms ease, color 300ms ease;
 }
 
@@ -207,10 +216,10 @@ const handleLogin = async () => {
 .auth-card {
   width: 100%;
   max-width: 420px;
-  background: var(--card-bg);
+  background: var(--card-bg, #ffffff);
   border-radius: 12px;
   padding: 36px 32px;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--hairline, #f0f0f0);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   transition: background 300ms ease, border-color 300ms ease;
 }
