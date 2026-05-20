@@ -284,121 +284,133 @@ async function handleRegister() {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   transition: background 0.5s ease;
 }
 
-.theme-student {
-  background: #545c64;
-}
-
+.theme-student,
 .theme-teacher {
-  background: #545c64;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
 }
 
 .login-container {
   width: 100%;
-  max-width: 460px;
+  max-width: 400px;
 }
 
+/* Header */
 .login-header {
   text-align: center;
-  margin-bottom: 24px;
-  color: white;
+  margin-bottom: 28px;
 }
 
 .login-logo {
-  font-size: 2.8em;
-  margin-bottom: 8px;
+  font-size: 2.4em;
+  margin-bottom: 12px;
+  line-height: 1;
 }
 
 .login-header h1 {
-  margin: 0 0 6px 0;
-  font-size: 1.6em;
-  font-weight: 700;
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1e293b;
+  letter-spacing: -0.3px;
 }
 
 .login-subtitle {
   margin: 0;
-  font-size: 0.85em;
-  opacity: 0.9;
+  font-size: 14px;
+  color: #64748b;
 }
 
+/* Card */
 .login-card {
-  background: white;
+  background: #ffffff;
   border-radius: 16px;
-  padding: 28px 30px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  padding: 32px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  animation: cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ===== 一级：角色选择 ===== */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Role selector */
 .role-selector {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 24px;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 6px;
+  border: 1px solid #e2e8f0;
 }
 
 .role-card {
   flex: 1;
   text-align: center;
-  padding: 16px 10px;
-  border-radius: 12px;
-  border: 2px solid #e8e8e8;
+  padding: 14px 10px;
+  border-radius: 8px;
+  border: none;
   cursor: pointer;
-  transition: all 0.3s ease;
-  background: #fafafa;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: transparent;
 }
 
 .role-card:hover {
-  border-color: #ccc;
-  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .role-card.active {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-
-.role-card:nth-child(1).active {
-  border-color: #337ecc;
-  background: linear-gradient(135deg, rgba(17, 153, 142, 0.06), rgba(56, 239, 125, 0.06));
-}
-
-.role-card:nth-child(2).active {
-  border-color: #409eff;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.06), rgba(118, 75, 162, 0.06));
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.09);
+  transform: none;
 }
 
 .role-icon {
-  font-size: 2em;
-  margin-bottom: 6px;
+  font-size: 1.5em;
+  margin-bottom: 5px;
+  line-height: 1;
 }
 
 .role-label {
-  font-size: 1em;
+  font-size: 13px;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
+  color: #334155;
+  margin-bottom: 3px;
 }
 
-.role-card:nth-child(1).active .role-label { color: #337ecc; }
-.role-card:nth-child(2).active .role-label { color: #409eff; }
+.role-card.active .role-label {
+  color: #3b82f6;
+}
+
+.role-card:nth-child(1).active .role-label,
+.role-card:nth-child(2).active .role-label {
+  color: #3b82f6;
+}
 
 .role-desc {
-  font-size: 0.75em;
-  color: #999;
+  font-size: 11px;
+  color: #94a3b8;
 }
 
-/* ===== 二级：登录/注册选项卡 ===== */
+/* Tabs */
 .login-tabs {
   display: flex;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #f0f0f0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .tab-btn {
@@ -406,47 +418,50 @@ async function handleRegister() {
   padding: 10px;
   background: none;
   border: none;
-  font-size: 0.95em;
-  color: #999;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #94a3b8;
   cursor: pointer;
   transition: all 0.2s;
   border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  margin-bottom: -1px;
 }
 
-.tab-btn.active {
+.tab-btn:hover {
+  color: #64748b;
+}
+
+.tab-btn.active,
+.theme-student .tab-btn.active,
+.theme-teacher .tab-btn.active {
   font-weight: 600;
-  border-bottom-color: #409eff;
-  color: #409eff;
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
 }
 
-.theme-student .tab-btn.active {
-  border-bottom-color: #337ecc;
-  color: #337ecc;
-}
-
-/* ===== 表单 ===== */
+/* Form */
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
 }
 
 .role-badge {
   text-align: center;
-  font-size: 0.85em;
+  font-size: 13px;
   font-weight: 600;
-  color: #fff;
-  padding: 8px;
+  color: #3b82f6;
+  padding: 9px 12px;
   border-radius: 8px;
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.14);
 }
 
-.theme-student .role-badge {
-  background: linear-gradient(135deg, #337ecc, #79bbff);
-}
-
+.theme-student .role-badge,
 .theme-teacher .role-badge {
-  background: linear-gradient(135deg, #409eff, #337ecc);
+  background: rgba(59, 130, 246, 0.06);
+  color: #3b82f6;
 }
 
 .form-group {
@@ -456,82 +471,108 @@ async function handleRegister() {
 }
 
 .form-group label {
-  font-size: 0.85em;
-  color: #555;
+  font-size: 13px;
+  color: #374151;
   font-weight: 500;
 }
 
-.required { color: #e74c3c; }
+.required {
+  color: #ef4444;
+}
 
 .form-group input {
-  padding: 10px 14px;
-  border: 1px solid #ddd;
+  padding: 11px 14px;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  font-size: 0.95em;
+  font-size: 14px;
+  font-family: inherit;
   outline: none;
-  transition: border-color 0.2s;
+  color: #1e293b;
+  background: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.form-group input:focus {
-  border-color: #409eff;
+.form-group input::placeholder {
+  color: #94a3b8;
 }
 
-.theme-student .form-group input:focus {
-  border-color: #337ecc;
+.form-group input:focus,
+.theme-student .form-group input:focus,
+.theme-teacher .form-group input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
+/* Feedback */
 .form-error {
-  color: #e74c3c;
-  font-size: 0.85em;
-  padding: 8px 12px;
-  background: #fef0f0;
-  border-radius: 6px;
+  color: #dc2626;
+  font-size: 13px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
 }
 
 .form-success {
-  color: #27ae60;
-  font-size: 0.85em;
-  padding: 8px 12px;
-  background: #f0fef0;
-  border-radius: 6px;
+  color: #16a34a;
+  font-size: 13px;
+  padding: 10px 14px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  border: 1px solid #bbf7d0;
 }
 
 .form-tip {
   text-align: center;
-  font-size: 0.8em;
-  color: #999;
+  font-size: 12px;
+  color: #94a3b8;
 }
 
+/* Submit button */
 .submit-btn {
-  padding: 12px;
-  font-size: 1em;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-family: inherit;
   border: none;
-  color: #fff;
+  color: #ffffff;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  transition: opacity 0.2s;
+  letter-spacing: 0.2px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.theme-student .submit-btn {
-  background: linear-gradient(135deg, #337ecc, #79bbff);
-}
-
+.theme-student .submit-btn,
 .theme-teacher .submit-btn {
-  background: linear-gradient(135deg, #409eff, #337ecc);
+  background: #3b82f6;
 }
 
-.submit-btn:hover { opacity: 0.9; }
-.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.38);
+}
 
-.btn-block { width: 100%; }
+.submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-block {
+  width: 100%;
+}
 
 @media (max-width: 768px) {
   .login-container { max-width: 100%; }
-  .login-card { padding: 20px 16px; }
-  .login-header h1 { font-size: 1.3em; }
-  .role-selector { gap: 8px; }
+  .login-card { padding: 24px 20px; }
+  .login-header h1 { font-size: 20px; }
+  .role-selector { gap: 6px; }
   .role-card { padding: 12px 6px; }
-  .role-icon { font-size: 1.5em; }
+  .role-icon { font-size: 1.3em; }
 }
 </style>

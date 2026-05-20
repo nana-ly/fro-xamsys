@@ -3,14 +3,35 @@ import { createRouter, createWebHistory } from 'vue-router'
 const routes = [
   {
     path: '/',
-    redirect: '/login'
+    redirect: '/home'
   },
-  // ===== 公共页面 =====
+  // ===== 首页 =====
+  {
+    path: '/home',
+    name: 'LandingPage',
+    component: () => import('@/views/auth/LandingPage.vue'),
+    meta: { title: '首页' }
+  },
+  // ===== 身份选择页 =====
+  {
+    path: '/role-select',
+    name: 'RoleSelect',
+    component: () => import('@/views/auth/RoleSelect.vue'),
+    meta: { title: '选择身份' }
+  },
+  // ===== 登录页 =====
   {
     path: '/login',
     name: 'Login',
-    component: () => import('@/views/student/Login.vue'),
+    component: () => import('@/views/auth/Login.vue'),
     meta: { title: '登录' }
+  },
+  // ===== 注册页 =====
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/auth/Register.vue'),
+    meta: { title: '注册' }
   },
   // ===== 教师端路由 =====
   {
@@ -115,9 +136,11 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  document.title = to.meta.title ? `${to.meta.title} - 安全驾驶教育平台` : '安全驾驶教育平台'
+  document.title = to.meta.title ? `${to.meta.title} - 知识聚合与智能考试平台` : '知识聚合与智能考试平台'
 
-  if (to.path === '/login') {
+  // 公开路由
+  const publicPaths = ['/login', '/register', '/role-select', '/home']
+  if (publicPaths.includes(to.path)) {
     next()
     return
   }

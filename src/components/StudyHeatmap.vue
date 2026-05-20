@@ -9,7 +9,11 @@
 </template>
 
 <script setup>
+<<<<<<< HEAD
 import { ref, onMounted, onBeforeUnmount, getCurrentInstance, watch, nextTick, computed } from 'vue'
+=======
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
+>>>>>>> origin/front-fix
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -18,8 +22,6 @@ const props = defineProps({
     default: () => []
   }
 })
-
-const { proxy } = getCurrentInstance()
 const heatmapChart = ref(null)
 let chartInstance = null
 
@@ -88,8 +90,11 @@ function initChart() {
   console.log('initChart called')
   console.log('heatmapSeriesData:', heatmapSeriesData)
   if (!heatmapChart.value) return
+<<<<<<< HEAD
   
   if (!echarts) return
+=======
+>>>>>>> origin/front-fix
 
   if (chartInstance) {
     chartInstance.dispose()

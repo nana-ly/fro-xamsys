@@ -288,11 +288,29 @@ export const exportScores = (params) => {
     })
 }
 
+<<<<<<< HEAD
 // ========== AI 智能出题 ==========
 export const aiGenerateQuestion = (data) => {
     return request({
         url: '/student/ai/generate_question/',
         method: 'post',
         data
+=======
+// ========== AI 出题 ==========
+export const aiGenerateQuestion = (data) => {
+    return request({
+        url: '/ai/generate/',
+        method: 'post',
+        data,
+        timeout: 30000  // 单题 30s 足够
+    })
+}
+
+// ========== 题库详情 ==========
+export const getQuestionDetail = (id) => {
+    return request({
+        url: `/question-bank/${id}/`,
+        method: 'get'
+>>>>>>> origin/front-fix
     })
 }

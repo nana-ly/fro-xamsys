@@ -1,4 +1,5 @@
 <template>
+<<<<<<< HEAD
   <div class="profile-page">
     <div class="page-header">
       <h2>个人信息</h2>
@@ -54,10 +55,15 @@
         </el-card>
       </el-col>
     </el-row>
+=======
+  <div>
+    <h1>教师个人中心</h1>
+>>>>>>> origin/front-fix
   </div>
 </template>
 
 <script setup>
+<<<<<<< HEAD
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCurrentUser } from '@/api/teacher'
@@ -149,3 +155,6 @@ async function changePassword() {
   color: #333;
 }
 </style>
+=======
+</script>
+>>>>>>> origin/front-fix
