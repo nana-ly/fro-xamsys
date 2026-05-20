@@ -7,15 +7,11 @@ const api = axios.create({
   withCredentials: true
 })
 
-// 请求拦截器 - 添加CSRF token 和 Authorization
+// 请求拦截器 - 添加CSRF token
 api.interceptors.request.use(config => {
   const csrfToken = getCookie('csrftoken')
   if (csrfToken) {
     config.headers['X-CSRFToken'] = csrfToken
-  }
-  const token = localStorage.getItem('token')
-  if (token && token !== 'true') {
-    config.headers['Authorization'] = `Token ${token}`
   }
   return config
 })
@@ -71,13 +67,9 @@ export function getWrongBook(params = {}) {
   return api.get('/student/wrongbook/', { params })
 }
 
-// 手动添加错题（支持 source_type 和 wrong_answer）
-export function addWrongQuestion(questionId, sourceType = 'main', wrongAnswer = '') {
-  return api.post('/student/wrongbook/add/', {
-    question_id: questionId,
-    source_type: sourceType,
-    wrong_answer: wrongAnswer
-  })
+// 手动添加错题
+export function addWrongQuestion(questionId) {
+  return api.post('/student/wrongbook/add/', { question_id: questionId })
 }
 
 // 标记/取消标记已掌握
@@ -87,33 +79,21 @@ export function toggleMaster(wrongId, isMastered) {
 
 // ===================== AI相关 =====================
 
-<<<<<<< HEAD
 // AI出题
 export function aiGenerateQuestion(knowledgePoint, questionType = 'choice', difficulty = 'medium', count = 5) {
-=======
-// AI出题（支持target_library和count）
-export function aiGenerateQuestion(knowledgePoint, questionType = 'choice', difficulty = 'medium', count = 1, targetLibrary = 'main') {
->>>>>>> origin/front-fix
   return api.post('/student/ai/generate_question/', {
     knowledge_point: knowledgePoint,
     question_type: questionType,
     difficulty: difficulty,
-<<<<<<< HEAD
     count: count
   }, { timeout: 60000 })
-=======
-    count: count,
-    target_library: targetLibrary
-  })
->>>>>>> origin/front-fix
 }
 
-// AI问答（对错题提问，支持source_type）
-export function aiAskQuestion(questionId, studentQuestion, sourceType = 'main') {
+// AI问答（对错题提问）
+export function aiAskQuestion(questionId, studentQuestion) {
   return api.post('/student/ai/ask/', {
     question_id: questionId,
-    student_question: studentQuestion,
-    source_type: sourceType
+    student_question: studentQuestion
   })
 }
 
@@ -163,35 +143,9 @@ export function getWrongStats() {
   return api.get('/student/wrongbook/')
 }
 
-// ===================== 练习模式相关 =====================
-
-// 从题库抽题练习
-export function getPracticeQuestions(params = {}) {
-  return api.get('/student/practice/', { params })
-}
-
-// 提交练习答案
-export function submitPracticeAnswers(answers) {
-  return api.post('/student/practice/', { answers })
-}
-
-// ===================== 做题记录相关 =====================
-
-// 获取做题记录
-export function getPracticeRecords(params = {}) {
+// 获取练习和考试记录（历史）
+export function getHistoryRecords(params = {}) {
   return api.get('/student/practice/records/', { params })
-}
-
-// 保存一条做题记录
-export function savePracticeRecord(data) {
-  return api.post('/student/practice/records/', data)
-}
-
-// ===================== 学习活跃度 =====================
-
-// 获取学习活跃度（用于热力图）
-export function getStudyActivity() {
-  return api.get('/student/activity/')
 }
 
 export default api

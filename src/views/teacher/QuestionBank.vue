@@ -3,23 +3,12 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <h2>题库管理</h2>
-<<<<<<< HEAD
       <el-button type="primary" icon="Plus" @click="showAddDialog">
         新增题目
       </el-button>
       <el-button type="success" icon="MagicStick" @click="showAIDialog">
         AI智能出题
       </el-button>
-=======
-      <div class="header-actions">
-        <el-button type="success" icon="MagicStick" @click="showAIDialog">
-          AI 出题
-        </el-button>
-        <el-button type="primary" icon="Plus" @click="showAddDialog">
-          新增题目
-        </el-button>
-      </div>
->>>>>>> origin/front-fix
     </div>
 
     <!-- 搜索筛选区 -->
@@ -73,18 +62,18 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="question_type_display" label="题型" width="100">
+        <el-table-column prop="type" label="题型" width="100">
           <template #default="scope">
-            <el-tag :type="getTypeColor(scope.row.question_type)">
-              {{ scope.row.question_type_display || getTypeName(scope.row.question_type) }}
+            <el-tag :type="getTypeColor(scope.row.type)">
+              {{ getTypeName(scope.row.type) }}
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column prop="difficulty_display" label="难度" width="100">
+        <el-table-column prop="difficulty" label="难度" width="100">
           <template #default="scope">
             <el-tag :type="getDifficultyColor(scope.row.difficulty)">
-              {{ scope.row.difficulty_display || getDifficultyName(scope.row.difficulty) }}
+              {{ getDifficultyName(scope.row.difficulty) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -198,7 +187,7 @@
           <!-- 多选题 -->
           <el-checkbox-group
               v-if="questionForm.type === 'multiple'"
-              v-model="questionForm.answerArray">
+              v-model="questionForm.answer">
             <el-checkbox
                 v-for="option in questionForm.options"
                 :key="option.key"
@@ -259,7 +248,6 @@
       </template>
     </el-dialog>
 
-<<<<<<< HEAD
     <!-- AI智能出题对话框 -->
     <el-dialog
         v-model="aiDialogVisible"
@@ -296,45 +284,6 @@
         <el-button @click="aiDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="aiGenerating" @click="handleAIGenerate">
           开始生成
-=======
-    <!-- AI 出题对话框 -->
-    <el-dialog v-model="aiDialogVisible" title="AI 智能出题" width="50%" @close="resetAIDialog">
-      <el-form :model="aiForm" label-width="100px">
-        <el-form-item label="知识点" required>
-          <el-input v-model="aiForm.knowledgePoint" placeholder="如：Python列表推导式、SQL注入" />
-        </el-form-item>
-        <el-form-item label="题型" required>
-          <el-select v-model="aiForm.questionType" style="width: 100%">
-            <el-option label="单选题" value="choice" />
-            <el-option label="多选题" value="multiple" />
-            <el-option label="判断题" value="judge" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="难度" required>
-          <el-radio-group v-model="aiForm.difficulty">
-            <el-radio label="easy">简单</el-radio>
-            <el-radio label="medium">中等</el-radio>
-            <el-radio label="hard">困难</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="出题数量" required>
-          <el-input-number v-model="aiForm.count" :min="1" :max="30" />
-        </el-form-item>
-      </el-form>
-      <div v-if="aiProgress" class="ai-result-box">
-        <el-alert :title="aiProgress" type="info" show-icon :closable="false" />
-      </div>
-      <div v-if="aiResult" class="ai-result-box">
-        <el-alert :title="aiResult" type="success" show-icon :closable="false" />
-      </div>
-      <div v-if="aiError" class="ai-result-box">
-        <el-alert :title="aiError" type="error" show-icon :closable="false" />
-      </div>
-      <template #footer>
-        <el-button @click="aiDialogVisible = false">取消</el-button>
-        <el-button type="success" :loading="aiLoading" @click="handleAIGenerate">
-          {{ aiLoading ? '生成中...' : '开始生成' }}
->>>>>>> origin/front-fix
         </el-button>
       </template>
     </el-dialog>
@@ -350,12 +299,7 @@ import {
   addQuestion,
   updateQuestion,
   deleteQuestion,
-<<<<<<< HEAD
   aiGenerateQuestion
-=======
-  aiGenerateQuestion,
-  getQuestionDetail
->>>>>>> origin/front-fix
 } from '@/api/teacher'
 
 // 数据定义
@@ -366,19 +310,6 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('新增题目')
 const questionFormRef = ref(null)
 const editingId = ref(null)
-
-// AI 出题
-const aiDialogVisible = ref(false)
-const aiLoading = ref(false)
-const aiResult = ref('')
-const aiError = ref('')
-const aiProgress = ref('')
-const aiForm = reactive({
-  knowledgePoint: '',
-  questionType: 'choice',
-  difficulty: 'medium',
-  count: 5
-})
 
 // 搜索表单
 const searchForm = reactive({
@@ -404,8 +335,7 @@ const questionForm = reactive({
     { key: 'C', value: '' },
     { key: 'D', value: '' }
   ],
-  answer: '',       // 单选题/判断题等用字符串；多选题存逗号分隔如"A,B,C"
-  answerArray: [],  // 多选题专用于el-checkbox-group的数组
+  answer: '',
   explanation: '',
   difficulty: 'medium',
   score: 5
@@ -430,9 +360,6 @@ const questionRules = {
 }
 
 // 获取题目列表
-const DIFFICULTY_MAP = { 'easy': 1, 'medium': 3, 'hard': 5 }
-const TYPE_MAP = { 'single': 'choice', 'multiple': 'multiple_choice', 'judge': 'true_false', 'blank': 'fill_blank', 'essay': 'essay' }
-
 const fetchQuestionList = async () => {
   loading.value = true
   try {
@@ -440,8 +367,8 @@ const fetchQuestionList = async () => {
       page: pagination.current,
       page_size: pagination.size,
       keyword: searchForm.keyword,
-      question_type: TYPE_MAP[searchForm.type] || searchForm.type,
-      difficulty: DIFFICULTY_MAP[searchForm.difficulty] || searchForm.difficulty
+      type: searchForm.type,
+      difficulty: searchForm.difficulty
     })
 
     // 映射后端字段到前端表格期望的字段名
@@ -493,7 +420,6 @@ const showAddDialog = () => {
   dialogVisible.value = true
 }
 
-<<<<<<< HEAD
 // DB类型值 → 前端简称
 const dbTypeToFrontend = (dbType) => {
   const map = {
@@ -538,56 +464,6 @@ const handleEdit = async (row) => {
   } catch (error) {
     ElMessage.error('获取题目详情失败')
     dialogVisible.value = false
-=======
-// 后端字段名 -> 前端字段名映射
-const TYPE_BACKEND_TO_FRONT = {
-  'choice': 'single',
-  'multiple_choice': 'multiple',
-  'true_false': 'judge',
-  'fill_blank': 'blank',
-  'essay': 'essay'
-}
-const DIFFICULTY_BACKEND_TO_FRONT = {
-  1: 'easy',
-  2: 'easy',
-  3: 'medium',
-  4: 'hard',
-  5: 'hard'
-}
-
-// 编辑题目（先请求详情，因为列表接口不返回答案和解析）
-const handleEdit = async (row) => {
-  dialogTitle.value = '编辑题目'
-  editingId.value = row.id
-
-  try {
-    // 请求单题详情，拿到完整数据（含 answer、analysis）
-    const detail = await getQuestionDetail(row.id)
-
-    // 填充表单数据，映射字段名
-    const frontType = TYPE_BACKEND_TO_FRONT[detail.question_type] || detail.question_type
-    questionForm.type = frontType
-    questionForm.content = detail.content || ''
-    questionForm.answer = detail.answer || ''
-    questionForm.answerArray = frontType === 'multiple' ? (detail.answer || '').split(',').filter(Boolean).sort() : []
-    questionForm.explanation = detail.analysis || ''
-    questionForm.difficulty = DIFFICULTY_BACKEND_TO_FRONT[detail.difficulty] || 'medium'
-    questionForm.score = 5  // 后端没有 score 字段，设置默认值
-
-    // 如果是选择题，填充选项（API返回{key:value}对象，转换为[{key,value}]数组）
-    if (detail.question_type === 'choice' || detail.question_type === 'multiple_choice') {
-      const opts = detail.options || {}
-      if (Array.isArray(opts)) {
-        questionForm.options = opts
-      } else if (typeof opts === 'object') {
-        questionForm.options = Object.keys(opts).map(key => ({ key, value: opts[key] }))
-      }
-    }
-
-    dialogVisible.value = true
-  } catch (error) {
-    ElMessage.error('获取题目详情失败')
->>>>>>> origin/front-fix
   }
 }
 
@@ -635,15 +511,10 @@ const handleSubmit = async () => {
 
   submitLoading.value = true
   try {
-    // 多选题：把 answerArray 转成逗号分隔字符串
-    const answer = questionForm.type === 'multiple'
-      ? questionForm.answerArray.sort().join(',')
-      : questionForm.answer
-
     const data = {
       type: questionForm.type,
       content: questionForm.content,
-      answer: answer,
+      answer: questionForm.answer,
       explanation: questionForm.explanation,
       difficulty: questionForm.difficulty,
       score: questionForm.score
@@ -685,7 +556,6 @@ const resetForm = () => {
     { key: 'D', value: '' }
   ]
   questionForm.answer = ''
-  questionForm.answerArray = []
   questionForm.explanation = ''
   questionForm.difficulty = 'medium'
   questionForm.score = 5
@@ -693,63 +563,6 @@ const resetForm = () => {
   if (questionFormRef.value) {
     questionFormRef.value.clearValidate()
   }
-}
-
-// ========== AI 出题 ==========
-const showAIDialog = () => {
-  aiDialogVisible.value = true
-  aiResult.value = ''
-  aiError.value = ''
-  aiForm.knowledgePoint = ''
-  aiForm.questionType = 'choice'
-  aiForm.difficulty = 'medium'
-  aiForm.count = 5
-}
-
-const handleAIGenerate = async () => {
-  if (!aiForm.knowledgePoint.trim()) {
-    aiError.value = '请输入知识点'
-    return
-  }
-  aiLoading.value = true
-  aiResult.value = ''
-  aiError.value = ''
-  aiProgress.value = ''
-
-  const total = aiForm.count
-  let successCount = 0
-
-  for (let i = 1; i <= total; i++) {
-    aiProgress.value = `正在生成第 ${i}/${total} 题...`
-    try {
-      const res = await aiGenerateQuestion({
-        knowledge_point: aiForm.knowledgePoint,
-        question_type: aiForm.questionType,
-        difficulty: aiForm.difficulty,
-        count: 1,
-        target_library: 'main'
-      })
-      successCount++
-    } catch (error) {
-      aiError.value = `第 ${i} 题生成失败，已生成 ${successCount} 道`
-      ElMessage.warning(`第 ${i} 题生成失败`)
-      break
-    }
-  }
-
-  aiProgress.value = ''
-  if (successCount > 0) {
-    const msg = `成功生成 ${successCount} 道题目`
-    aiResult.value = msg
-    ElMessage.success(msg)
-    fetchQuestionList()
-  }
-  aiLoading.value = false
-}
-
-const resetAIDialog = () => {
-  aiResult.value = ''
-  aiError.value = ''
 }
 
 // 辅助函数
@@ -761,19 +574,11 @@ const getTypeName = (type) => {
     judge: '判断题',
     blank: '填空题',
     essay: '简答题',
-<<<<<<< HEAD
     // 后端DB值
     choice: '单选题',
     multiple_choice: '多选题',
     true_false: '判断题',
     fill_blank: '填空题'
-=======
-    // 后端值兼容
-    choice: '单选题',
-    multiple_choice: '多选题',
-    true_false: '判断题',
-    fill_blank: '填空题',
->>>>>>> origin/front-fix
   }
   return typeMap[type] || type || ''
 }
@@ -785,18 +590,10 @@ const getTypeColor = (type) => {
     judge: 'warning',
     blank: 'info',
     essay: 'danger',
-<<<<<<< HEAD
     choice: '',
     multiple_choice: 'success',
     true_false: 'warning',
     fill_blank: 'info'
-=======
-    // 后端值兼容
-    choice: '',
-    multiple_choice: 'success',
-    true_false: 'warning',
-    fill_blank: 'info',
->>>>>>> origin/front-fix
   }
   return colorMap[type] || ''
 }
@@ -805,13 +602,7 @@ const getDifficultyName = (difficulty) => {
   const difficultyMap = {
     easy: '简单',
     medium: '中等',
-    hard: '困难',
-    // 后端值兼容（1-5）
-    1: '简单',
-    2: '较简单',
-    3: '中等',
-    4: '较难',
-    5: '困难',
+    hard: '困难'
   }
   return difficultyMap[difficulty] || difficulty
 }
@@ -820,13 +611,7 @@ const getDifficultyColor = (difficulty) => {
   const colorMap = {
     easy: 'success',
     medium: 'warning',
-    hard: 'danger',
-    // 后端值兼容（1-5）
-    1: 'success',
-    2: '',
-    3: 'warning',
-    4: 'danger',
-    5: 'danger',
+    hard: 'danger'
   }
   return colorMap[difficulty] || ''
 }
@@ -886,16 +671,6 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   color: #333;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.ai-result-box {
-  margin-top: 16px;
-  padding: 0 10px;
 }
 
 .search-card, .table-card {

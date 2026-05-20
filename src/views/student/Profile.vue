@@ -126,18 +126,17 @@ async function fetchProfileData() {
       url: '/student/profile/',
       method: 'get'
     })
-    const { stats: apiStats, study_data } = res
     stats.value = {
-      totalExams: apiStats.total_exams || 0,
-      avgScore: apiStats.avg_score || 0,
-      wrongCount: apiStats.wrong_count || 0,
-      studyDays: apiStats.study_days || 0,
-      completedExams: apiStats.completed_exams || 0,
-      masteredQuestions: apiStats.mastered_questions || 0,
-      correctRate: apiStats.correct_rate || 0,
-      totalHours: apiStats.total_hours || 0
+      totalExams: res.total_exams || 0,
+      avgScore: res.avg_score || 0,
+      wrongCount: res.total_wrong || 0,
+      studyDays: res.study_days || 0,
+      completedExams: res.total_exams || 0,
+      masteredQuestions: res.mastered_wrong || 0,
+      correctRate: res.correct_rate || 0,
+      totalHours: res.study_hours || 0
     }
-    studyData.value = study_data || []
+    studyData.value = []
   } catch {
     // keep default zeros on error
   } finally {

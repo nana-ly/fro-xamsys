@@ -412,14 +412,21 @@ async function loadPracticeQuestions() {
   const sourceQuery = route.query.source
   const aiQuestions = route.query.aiQuestions
 
-  if (sourceQuery === 'ai' && aiQuestions) {
-    // 从AI智能出题跳转过来的，解析题目数据
+  if (sourceQuery === 'ai') {
+    // 从AI智能出题跳转过来的，从 sessionStorage 读取题目数据
     try {
-      const parsed = JSON.parse(aiQuestions)
-      questions.value = JSON.parse(JSON.stringify(Array.isArray(parsed) ? parsed : [parsed]))
+      const aiQuestionsData = sessionStorage.getItem('aiQuestions')
+      console.log('raw from session:', aiQuestionsData)
+      if (!aiQuestionsData) {
+        error.value = '未找到AI题目数据'
+        loading.value = false
+        return
+      }
+      const parsed = JSON.parse(aiQuestionsData)
+      questions.value = parsed
+      console.log('practice questions:', JSON.stringify(questions.value))
+      sessionStorage.removeItem('aiQuestions')
       currentIndex.value = 0
-      console.log('questions.value after assignment:', JSON.stringify(questions.value))
-      console.log('parsed questions:', questions.value)
       practiceInfo.value.name = 'AI 智能出题练习'
     } catch {
       error.value = '解析AI题目数据失败'

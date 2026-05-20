@@ -9,11 +9,7 @@
 </template>
 
 <script setup>
-<<<<<<< HEAD
 import { ref, onMounted, onBeforeUnmount, getCurrentInstance, watch, nextTick, computed } from 'vue'
-=======
-import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue'
->>>>>>> origin/front-fix
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -22,6 +18,8 @@ const props = defineProps({
     default: () => []
   }
 })
+
+const { proxy } = getCurrentInstance()
 const heatmapChart = ref(null)
 let chartInstance = null
 
@@ -90,11 +88,8 @@ function initChart() {
   console.log('initChart called')
   console.log('heatmapSeriesData:', heatmapSeriesData)
   if (!heatmapChart.value) return
-<<<<<<< HEAD
   
   if (!echarts) return
-=======
->>>>>>> origin/front-fix
 
   if (chartInstance) {
     chartInstance.dispose()
@@ -212,11 +207,11 @@ function initChart() {
       left: 'center',
       bottom: 10,
       pieces: [
-        { min: 0, max: 0, label: '无', color: '#ebedf0' },
-        { min: 1, max: 1, label: '1题', color: '#c6e48b' },
-        { min: 2, max: 3, label: '2-3题', color: '#7bc96f' },
-        { min: 4, max: 6, label: '4-6题', color: '#239a3b' },
-        { min: 7, max: 999, label: '7+题', color: '#196127' }
+        { min: 0, max: 0, label: '0', color: '#ebedf0' },
+        { min: 1, max: 20, label: '1-20', color: '#c6e48b' },
+        { min: 21, max: 50, label: '21-50', color: '#7bc96f' },
+        { min: 51, max: 100, label: '51-100', color: '#239a3b' },
+        { min: 101, max: 9999, label: '101+', color: '#196127' }
       ],
       textStyle: {
         fontSize: 10

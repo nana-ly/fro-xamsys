@@ -110,6 +110,12 @@ const routes = [
         meta: { title: '错题本' }
       },
       {
+        path: 'history',
+        name: 'History',
+        component: () => import('@/views/student/History.vue'),
+        meta: { title: '学习记录' }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/student/Profile.vue'),
