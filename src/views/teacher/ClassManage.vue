@@ -382,7 +382,7 @@ const viewStudents = async (classId) => {
 }
 
 // 显示添加学生对话框
-const showAddStudentDialog = (classId) => {
+const showAddStudentDialog = async (classId) => {
   currentClassId.value = classId
   addStudentType.value = 'search'
   studentSearchKeyword.value = ''
@@ -390,21 +390,36 @@ const showAddStudentDialog = (classId) => {
   searchResults.value = []
   selectedStudents.value = []
   addStudentDialogVisible.value = true
+  // 默认加载所有可添加的学生
+  await loadAllStudents()
+}
+
+// 加载所有可添加的学生（排除已在本班的）
+const loadAllStudents = async () => {
+  try {
+    const res = await searchStudentsAPI({
+      exclude_class: currentClassId.value
+    })
+    searchResults.value = (res.results || res).filter(u => u.role === 'student')
+  } catch (error) {
+    // 静默处理
+  }
 }
 
 // 搜索学生
 const searchStudents = async () => {
   if (!studentSearchKeyword.value.trim()) {
-    ElMessage.warning('请输入搜索关键词')
+    loadAllStudents()
     return
   }
 
   try {
     const res = await searchStudentsAPI({
-      keyword: studentSearchKeyword.value,
+      search: studentSearchKeyword.value,
       exclude_class: currentClassId.value
     })
-    searchResults.value = res.results || res
+    // 客户端兜底过滤：只显示学生角色
+    searchResults.value = (res.results || res).filter(u => u.role === 'student')
   } catch (error) {
     ElMessage.error('搜索失败')
   }

@@ -44,11 +44,11 @@
           </select>
         </div>
         <div class="filter-group">
-          <label>知识点：</label>
+          <label>关键词：</label>
           <input 
-            v-model="filterKnowledge" 
+            v-model="filterKeyword" 
             type="text" 
-            placeholder="搜索知识点..."
+            placeholder="搜索题目或知识点..."
             @input="applyFilter"
           />
         </div>
@@ -194,7 +194,7 @@ const wrongList = ref([])
 const loading = ref(false)
 const filterType = ref('')
 const filterMastered = ref('')
-const filterKnowledge = ref('')
+const filterKeyword = ref('')
 const showAIModal = ref(false)
 const aiQuestion = ref(null)
 const togglingId = ref(null)
@@ -243,9 +243,9 @@ async function loadWrongBook() {
   try {
     const params = {}
     if (filterType.value) params.question_type = filterType.value
-    if (filterMastered.value === 'mastered') params.is_mastered = true
-    if (filterMastered.value === 'unmastered') params.is_mastered = false
-    if (filterKnowledge.value.trim()) params.knowledge_point = filterKnowledge.value.trim()
+    if (filterMastered.value === 'mastered') params.mastered = 'true'
+    if (filterMastered.value === 'unmastered') params.mastered = 'false'
+    if (filterKeyword.value.trim()) params.keyword = filterKeyword.value.trim()
 
     const res = await getWrongBook(params)
     wrongList.value = Array.isArray(res.data) ? res.data : (res.data?.results || [])

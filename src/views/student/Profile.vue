@@ -83,28 +83,6 @@
       <!-- 学习活跃度热力图 -->
       <StudyHeatmap :studyData="studyData" />
 
-      <!-- 快捷操作 -->
-      <div class="quick-actions">
-        <h3>🚀 快捷操作</h3>
-        <div class="actions-grid">
-          <button class="action-card card" @click="$router.push('/student/home')">
-            <span class="action-icon">📋</span>
-            <span class="action-text">试卷列表</span>
-          </button>
-          <button class="action-card card" @click="$router.push('/student/exam/0?mode=practice')">
-            <span class="action-icon">🎯</span>
-            <span class="action-text">开始练习</span>
-          </button>
-          <button class="action-card card" @click="$router.push('/student/wrong-book')">
-            <span class="action-icon">📝</span>
-            <span class="action-text">错题本</span>
-          </button>
-          <button class="action-card card danger" @click="handleLogout">
-            <span class="action-icon">🚪</span>
-            <span class="action-text">退出登录</span>
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -113,9 +91,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
+import request from '@/utils/request'
 
 const router = useRouter()
 const userName = ref(localStorage.getItem('userName') || '同学')
+const loading = ref(true)
 
 const stats = ref({
   totalExams: 0,
@@ -140,39 +120,33 @@ const progressMastered = computed(() => {
   return Math.round((stats.value.masteredQuestions / stats.value.wrongCount) * 100)
 })
 
-function generateMockStudyData() {
-  const data = []
-  const today = new Date()
-  for (let i = 0; i < 91; i++) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    const count = Math.random() > 0.35 ? Math.floor(Math.random() * 12) + 1 : 0
-    if (count > 0) data.push({ date: dateStr, count })
+async function fetchProfileData() {
+  try {
+    const res = await request({
+      url: '/student/profile/',
+      method: 'get'
+    })
+    const { stats: apiStats, study_data } = res
+    stats.value = {
+      totalExams: apiStats.total_exams || 0,
+      avgScore: apiStats.avg_score || 0,
+      wrongCount: apiStats.wrong_count || 0,
+      studyDays: apiStats.study_days || 0,
+      completedExams: apiStats.completed_exams || 0,
+      masteredQuestions: apiStats.mastered_questions || 0,
+      correctRate: apiStats.correct_rate || 0,
+      totalHours: apiStats.total_hours || 0
+    }
+    studyData.value = study_data || []
+  } catch {
+    // keep default zeros on error
+  } finally {
+    loading.value = false
   }
-  return data
-}
-
-function handleLogout() {
-  localStorage.removeItem('userRole')
-  localStorage.removeItem('userName')
-  localStorage.removeItem('userId')
-  router.push('/login')
 }
 
 onMounted(() => {
-  // 模拟统计数据
-  stats.value = {
-    totalExams: 8,
-    avgScore: 82,
-    wrongCount: 15,
-    studyDays: 23,
-    completedExams: 6,
-    masteredQuestions: 9,
-    correctRate: 76,
-    totalHours: 18
-  }
-  studyData.value = generateMockStudyData()
+  fetchProfileData()
 })
 </script>
 
@@ -240,7 +214,7 @@ onMounted(() => {
 .stat-value { font-size: 1.4em; font-weight: 700; color: #409eff; }
 .stat-label { font-size: 0.8em; color: #999; margin-top: 4px; }
 
-.stats-section h3, .quick-actions h3 {
+.stats-section h3 {
   margin: 0 0 12px 0;
   font-size: 1.05em;
 }
@@ -305,35 +279,9 @@ onMounted(() => {
   color: #999;
 }
 
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 12px;
-}
-
-.action-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 18px;
-  border: none;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.action-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-
-.action-card.danger { color: #e74c3c; }
-.action-card.danger:hover { background: #fef0f0; }
-
-.action-icon { font-size: 1.8em; }
-.action-text { font-size: 0.85em; color: #555; }
-
 @media (max-width: 768px) {
   .profile-page { padding: 12px; }
   .profile-stats { gap: 16px; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .actions-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>

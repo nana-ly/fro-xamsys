@@ -100,7 +100,10 @@ const fetchExamList = async () => {
       page: pagination.current,
       page_size: pagination.size
     })
-    examList.value = res.results
+    examList.value = (res.results || []).map(p => ({
+      ...p,
+      title: p.name || p.title
+    }))
     pagination.total = res.count
   } catch (error) {
     ElMessage.error('获取试卷列表失败')
