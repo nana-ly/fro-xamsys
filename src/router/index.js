@@ -1,4 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import TeacherLayout from '@/layouts/TeacherLayout.vue'
+import QuestionBank from '@/views/teacher/QuestionBank.vue'
+
+import ClassManage from '@/views/teacher/ClassManage.vue'
+import ScoreView from '@/views/teacher/ScoreView.vue'
+import ExamList from '@/views/teacher/ExamList.vue'
+import TeacherProfile from '@/views/teacher/Profile.vue'
 
 const routes = [
   {
@@ -36,44 +43,38 @@ const routes = [
   // ===== 教师端路由 =====
   {
     path: '/teacher',
-    component: () => import('@/layouts/TeacherLayout.vue'),
+    component: TeacherLayout,
     redirect: '/teacher/question-bank',
     meta: { role: 'teacher' },
     children: [
       {
         path: 'question-bank',
         name: 'QuestionBank',
-        component: () => import('@/views/teacher/QuestionBank.vue'),
+        component: QuestionBank,
         meta: { title: '题库管理' }
-      },
-      {
-        path: 'create-exam',
-        name: 'CreateExam',
-        component: () => import('@/views/teacher/CreateExam.vue'),
-        meta: { title: '创建试卷' }
       },
       {
         path: 'class-manage',
         name: 'ClassManage',
-        component: () => import('@/views/teacher/ClassManage.vue'),
+        component: ClassManage,
         meta: { title: '班级管理' }
       },
       {
         path: 'score-view',
         name: 'ScoreView',
-        component: () => import('@/views/teacher/ScoreView.vue'),
+        component: ScoreView,
         meta: { title: '成绩查看' }
       },
       {
         path: 'exam-list',
         name: 'ExamList',
-        component: () => import('@/views/teacher/ExamList.vue'),
+        component: ExamList,
         meta: { title: '试卷管理' }
       },
       {
         path: 'profile',
         name: 'TeacherProfile',
-        component: () => import('@/views/teacher/Profile.vue'),
+        component: TeacherProfile,
         meta: { title: '个人信息' }
       }
     ]
@@ -104,7 +105,7 @@ const routes = [
         meta: { title: '练习模式' }
       },
       {
-        path: 'wrong-book',
+        path: 'wrongbook',
         name: 'WrongBook',
         component: () => import('@/views/student/WrongBook.vue'),
         meta: { title: '错题本' }
@@ -151,17 +152,20 @@ router.beforeEach((to, from, next) => {
     return
   }
 
-  const token = localStorage.getItem('token')
+  // 根据目标路由确定角色前缀
+  const targetRole = to.path.startsWith('/teacher') ? 'teacher' : 'student'
+  const prefix = targetRole
+  // 优先读 sessionStorage（当前标签页），其次读 localStorage（跨标签页）
+  const token = sessionStorage.getItem(`${prefix}_token`) || localStorage.getItem(`${prefix}_token`)
   if (!token) {
-    next('/login')
+    next(`/login?role=${targetRole}`)
     return
   }
 
-  // 角色权限检查（避免多标签页互相干扰）
-  const userRole = localStorage.getItem('userRole')
+  // 角色权限检查
+  const userRole = sessionStorage.getItem(`${prefix}_userRole`) || localStorage.getItem(`${prefix}_userRole`)
   if (to.meta.role && userRole && to.meta.role !== userRole) {
-    // 角色不匹配时跳转到登录页，而不是切换到另一端页面
-    next('/login')
+    next(`/login?role=${to.meta.role}`)
     return
   }
 

@@ -121,12 +121,26 @@ const handleLogin = async () => {
         return
       }
 
-      localStorage.setItem('token', data.token || data.key || data.csrfToken || 'true')
-      localStorage.setItem('csrfToken', data.csrfToken || '')
-      localStorage.setItem('userRole', user.role || 'student')
-      localStorage.setItem('userName', user.real_name || user.username)
-      localStorage.setItem('userId', user.id)
-      localStorage.setItem('userInfo', JSON.stringify(user))
+      const token = data.token || data.key || data.csrfToken || 'true'
+      const csrfToken = data.csrfToken || ''
+      const role = user.role || 'student'
+      const prefix = role === 'teacher' ? 'teacher' : 'student'
+      // 先清除另一种角色的所有数据，防止跨角色污染
+      const oppositePrefix = role === 'teacher' ? 'student' : 'teacher'
+      const keysToRemove = ['token', 'csrfToken', 'userRole', 'userName', 'userId', 'userInfo']
+      keysToRemove.forEach(k => {
+        localStorage.removeItem(`${oppositePrefix}_${k}`)
+        sessionStorage.removeItem(`${oppositePrefix}_${k}`)
+      })
+      // 用角色前缀存储，不同角色 key 不冲突
+      localStorage.setItem(`${prefix}_token`, token)
+      localStorage.setItem(`${prefix}_csrfToken`, csrfToken)
+      localStorage.setItem(`${prefix}_userRole`, role)
+      localStorage.setItem(`${prefix}_userName`, user.real_name || user.username)
+      localStorage.setItem(`${prefix}_userId`, user.id)
+      localStorage.setItem(`${prefix}_userInfo`, JSON.stringify(user))
+      sessionStorage.setItem(`${prefix}_token`, token)
+      sessionStorage.setItem(`${prefix}_userRole`, role)
 
       if (loginForm.remember) {
         localStorage.setItem('savedUsername', loginForm.username)

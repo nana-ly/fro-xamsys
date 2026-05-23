@@ -2,14 +2,35 @@
   <div class="ai-modal-overlay" v-if="visible" @click.self="close">
     <div class="ai-modal card" :class="{ 'ai-modal--mobile': isMobile }">
       <div class="ai-modal-header">
-        <h3>🤖 AI 答疑助手</h3>
-        <button class="ai-modal-close" @click="close">✕</button>
+        <h3>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px">
+            <rect x="2" y="2" width="20" height="20" rx="4"/>
+            <circle cx="9" cy="10" r="1.5" fill="currentColor"/>
+            <circle cx="15" cy="10" r="1.5" fill="currentColor"/>
+            <path d="M9 16c1 .5 2 1 3 1s2-.5 3-1"/>
+          </svg>
+          AI 答疑助手
+        </h3>
+        <button class="ai-modal-close" @click="close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
 
       <div class="ai-modal-body">
         <!-- 题目信息 -->
         <div class="question-info" v-if="questionContent">
-          <p class="question-label">📋 题目内容：</p>
+          <p class="question-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            题目内容：
+          </p>
           <p class="question-text">{{ questionContent }}</p>
           <div v-if="questionOptions" class="question-options">
             <span v-for="(opt, key) in parsedOptions" :key="key" class="option-tag">

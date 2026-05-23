@@ -9,14 +9,15 @@ const request = axios.create({
     withCredentials: true
 })
 
-// 请求拦截器：从 localStorage 读 token 和 CSRF Token
+// 请求拦截器：根据 URL 路径自动判断角色，读取对应 token
 request.interceptors.request.use(
     config => {
-        const csrfToken = localStorage.getItem('csrfToken')
+        const prefix = config.url?.startsWith('/teacher') ? 'teacher' : 'student'
+        const csrfToken = localStorage.getItem(`${prefix}_csrfToken`) || localStorage.getItem('csrfToken')
         if (csrfToken) {
             config.headers['X-CSRFToken'] = csrfToken
         }
-        const token = localStorage.getItem('token')
+        const token = sessionStorage.getItem(`${prefix}_token`) || localStorage.getItem(`${prefix}_token`)
         if (token && token !== 'true') {
             config.headers['Authorization'] = `Token ${token}`
         }
@@ -54,7 +55,8 @@ request.interceptors.response.use(
                     break
                 case 401:
                     ElMessage.error('请先登录')
-                    router.push('/login')
+                    const role = window.location.pathname.startsWith('/teacher') ? 'teacher' : 'student'
+                    router.push(`/login?role=${role}`)
                     break
                 case 403:
                     ElMessage.error('权限不足')

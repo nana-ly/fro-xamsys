@@ -14,6 +14,14 @@ import VueECharts from 'vue-echarts'
 // 学生端全局样式
 import './assets/main.css'
 
+// 忽略 ResizeObserver loop 警告
+window.addEventListener('error', (e) => {
+  if (e.message && e.message.includes('ResizeObserver loop')) e.stopImmediatePropagation()
+})
+window.addEventListener('unhandledrejection', (e) => {
+  if (e.reason?.message?.includes('ResizeObserver loop')) e.preventDefault()
+})
+
 const app = createApp(App)
 
 // 注册Element Plus图标

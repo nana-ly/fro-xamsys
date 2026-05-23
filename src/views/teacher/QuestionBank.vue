@@ -1,15 +1,15 @@
 <template>
-  <div class="question-bank">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2>题库管理</h2>
-      <el-button type="primary" icon="Plus" @click="showAddDialog">
-        新增题目
-      </el-button>
+  <div class="page-header">
+    <h2>题库管理</h2>
+    <div class="header-buttons">
       <el-button type="success" icon="MagicStick" @click="showAIDialog">
         AI智能出题
       </el-button>
+      <el-button type="primary" icon="Plus" @click="showAddDialog" style="margin-left: 12px">
+        新增题目
+      </el-button>
     </div>
+  </div>
 
     <!-- 搜索筛选区 -->
     <el-card class="search-card">
@@ -295,7 +295,6 @@
         </el-button>
       </template>
     </el-dialog>
-  </div>
 </template>
 
 <script setup>
@@ -717,6 +716,11 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   color: #333;
+}
+
+.header-buttons {
+  display: flex;
+  align-items: center;
 }
 
 .search-card, .table-card {

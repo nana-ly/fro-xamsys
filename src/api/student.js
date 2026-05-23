@@ -7,11 +7,16 @@ const api = axios.create({
   withCredentials: true
 })
 
-// 请求拦截器 - 添加CSRF token
+// 请求拦截器 - 添加CSRF token 和 认证Token
 api.interceptors.request.use(config => {
-  const csrfToken = getCookie('csrftoken')
+  const csrfToken = getCookie('csrftoken') || localStorage.getItem('student_csrfToken') || localStorage.getItem('csrfToken')
   if (csrfToken) {
     config.headers['X-CSRFToken'] = csrfToken
+  }
+  // 添加 Authorization token（优先当前标签页 session，再读 localStorage）
+  const token = sessionStorage.getItem('student_token') || localStorage.getItem('student_token')
+  if (token && token !== 'true') {
+    config.headers['Authorization'] = `Token ${token}`
   }
   return config
 })
@@ -23,7 +28,8 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       const path = window.location.pathname
       if (path !== '/login') {
-        window.location.href = '/login'
+        const role = path.startsWith('/teacher') ? 'teacher' : 'student'
+        window.location.href = `/login?role=${role}`
       }
     }
     return Promise.reject(error)

@@ -1,14 +1,11 @@
 <template>
   <div class="wrong-book-page">
     <div class="container">
-      <!-- 返回按钮 -->
-      <button class="btn btn-back" @click="$router.push('/student/home')">
-        ← 返回主页
-      </button>
+
 
       <!-- 页面头部 -->
       <div class="page-header card">
-        <h2>📝 我的错题本</h2>
+        <h2>我的错题本</h2>
         <div class="header-stats">
           <span class="stat-item">
             总错题：<strong>{{ wrongList.length }}</strong>
@@ -62,7 +59,14 @@
 
       <!-- 空状态 -->
       <div v-else-if="displayList.length === 0" class="empty-state card">
-        <div class="empty-icon">📭</div>
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--hairline-strong)" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M16 16s-1.5-2-4-2-4 2-4 2"/>
+            <line x1="9" y1="9" x2="9.01" y2="9"/>
+            <line x1="15" y1="9" x2="15.01" y2="9"/>
+          </svg>
+        </div>
         <h3>暂无错题</h3>
         <p>{{ wrongList.length === 0 ? '快去刷题吧，加油！' : '没有符合条件的错题' }}</p>
       </div>
@@ -77,12 +81,12 @@
           <div class="wrong-card-header">
             <span class="type-badge">{{ typeLabel(item.question_type) }}</span>
             <span class="difficulty" v-if="item.difficulty">
-              {{ '⭐'.repeat(item.difficulty) }}
+              {{ '★'.repeat(item.difficulty) }}
             </span>
             <span class="knowledge-tag" v-if="item.knowledge_point">
               {{ item.knowledge_point }}
             </span>
-            <span v-if="item.is_mastered" class="mastered-badge">已掌握 ✓</span>
+            <span v-if="item.is_mastered" class="mastered-badge">已掌握</span>
           </div>
 
           <div class="wrong-card-body">
@@ -116,14 +120,14 @@
 
             <!-- 解析 -->
             <div v-if="item.analysis" class="analysis-box">
-              <strong>📖 解析：</strong>
+              <strong>解析：</strong>
               <p>{{ item.analysis }}</p>
             </div>
           </div>
 
           <div class="wrong-card-footer">
             <button class="btn btn-sm btn-outline" @click="openAIQuestion(item)">
-              🤖 问AI
+              问AI
             </button>
             <button 
               :class="['btn btn-sm', item.is_mastered ? 'btn-outline' : 'btn-primary']"
@@ -345,7 +349,6 @@ onMounted(() => {
 
 <style scoped>
 .wrong-book-page {
-  padding: 20px;
   max-width: 900px;
   margin: 0 auto;
 }
@@ -356,26 +359,9 @@ onMounted(() => {
   gap: 16px;
 }
 
-.btn-back {
-  align-self: flex-start;
-  padding: 8px 20px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9em;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  border-color: #409eff;
-  color: #409eff;
-  background: #ecf5ff;
-}
-
+/* ===== 页面头部 ===== */
 .page-header {
-  padding: 20px;
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -384,6 +370,7 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   font-size: 1.2em;
+  color: var(--ink, #2a2a2a);
 }
 
 .header-stats {
@@ -391,14 +378,17 @@ onMounted(() => {
   gap: 16px;
 }
 
-.stat-item {
-  font-size: 0.85em;
-  color: #888;
+.header-stats .stat-item {
+  font-size: 13px;
+  color: var(--muted, #6b655c);
 }
 
-.stat-item.mastered { color: #27ae60; }
-.stat-item.unmastered { color: #e67e22; }
+.header-stats .stat-item strong { font-weight: 600; }
 
+.stat-item.mastered { color: #5db872; }
+.stat-item.unmastered { color: #d4a017; }
+
+/* ===== 筛选栏 ===== */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -413,53 +403,39 @@ onMounted(() => {
 }
 
 .filter-group label {
-  font-size: 0.85em;
-  color: #666;
+  font-size: 13px;
+  color: var(--muted, #6b655c);
   white-space: nowrap;
 }
 
 .filter-group select,
 .filter-group input {
   padding: 6px 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 0.85em;
+  border: 1.5px solid var(--hairline-strong, #ccc2b4);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--ink, #2a2a2a);
   outline: none;
+  background: var(--card-bg, #ffffff);
 }
 
 .filter-group select:focus,
 .filter-group input:focus {
-  border-color: #409eff;
+  border-color: var(--primary, #d97757);
+  box-shadow: 0 0 0 3px var(--primary-bg, rgba(217,119,87,0.12));
 }
 
-.loading-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
-}
-
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid #f0f0f0;
-  border-top-color: #409eff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
+/* ===== 加载/空状态 ===== */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
 }
 
-.empty-icon { font-size: 3em; margin-bottom: 10px; }
+.empty-state h3 { margin: 0 0 8px 0; color: var(--ink, #2a2a2a); }
+.empty-state p { margin: 0; color: var(--muted-soft, #9f988e); }
 
-.empty-state h3 { margin: 0 0 8px 0; color: #333; }
-.empty-state p { margin: 0; color: #999; }
-
+/* ===== 错题列表 ===== */
 .wrong-list {
   display: flex;
   flex-direction: column;
@@ -471,8 +447,8 @@ onMounted(() => {
 }
 
 .wrong-card.mastered {
-  opacity: 0.75;
-  border-left: 3px solid #27ae60;
+  opacity: 0.7;
+  border-left: 3px solid #5db872;
 }
 
 .wrong-card-header {
@@ -485,38 +461,40 @@ onMounted(() => {
 
 .type-badge {
   padding: 2px 8px;
-  background: #d9ecff;
-  color: #409eff;
-  border-radius: 10px;
-  font-size: 0.75em;
+  background: var(--primary-bg, rgba(217,119,87,0.12));
+  color: var(--primary, #d97757);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .difficulty {
-  font-size: 0.75em;
+  font-size: 12px;
+  color: var(--muted-soft, #9f988e);
 }
 
 .knowledge-tag {
   padding: 2px 8px;
-  background: #fff3e0;
-  color: #e67e22;
-  border-radius: 10px;
-  font-size: 0.75em;
+  background: rgba(212,160,23,0.1);
+  color: #d4a017;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 12px;
 }
 
 .mastered-badge {
   margin-left: auto;
   padding: 2px 8px;
-  background: #e8f5e9;
-  color: #27ae60;
-  border-radius: 10px;
-  font-size: 0.75em;
+  background: rgba(93,184,114,0.1);
+  color: #5db872;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 12px;
 }
 
 .question-content {
   margin: 0 0 12px 0;
-  font-size: 0.95em;
+  font-size: 14px;
   line-height: 1.6;
-  color: #333;
+  color: var(--ink, #2a2a2a);
 }
 
 .options-display {
@@ -528,22 +506,22 @@ onMounted(() => {
 
 .option-tag {
   padding: 2px 8px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-  font-size: 0.8em;
-  color: #666;
+  border: 1px solid var(--hairline, #e3dbd0);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 13px;
+  color: var(--muted, #6b655c);
 }
 
 .option-tag.correct-option {
-  border-color: #4caf50;
-  background: #e8f5e9;
-  color: #2e7d32;
+  border-color: #5db872;
+  background: rgba(93,184,114,0.08);
+  color: #3a9d5e;
 }
 
 .option-tag.wrong-option {
-  border-color: #e74c3c;
-  background: #fef0f0;
-  color: #c62828;
+  border-color: #c64545;
+  background: rgba(198,69,69,0.06);
+  color: #b33a3a;
 }
 
 .answer-compare {
@@ -551,27 +529,30 @@ onMounted(() => {
   gap: 20px;
   margin-bottom: 12px;
   padding: 10px 14px;
-  background: #f8f9fa;
-  border-radius: 8px;
+  background: var(--primary-bg, rgba(217,119,87,0.04));
+  border: 1px solid var(--hairline, #e3dbd0);
+  border-radius: var(--radius-md, 8px);
 }
 
 .your-answer, .correct-answer {
-  font-size: 0.9em;
+  font-size: 14px;
 }
 
-.label { color: #888; margin-right: 4px; }
-.wrong-value { color: #e74c3c; font-weight: 600; text-decoration: line-through; }
-.correct-value { color: #4caf50; font-weight: 600; }
+.label { color: var(--muted, #6b655c); margin-right: 4px; }
+.wrong-value { color: #c64545; font-weight: 600; text-decoration: line-through; }
+.correct-value { color: #5db872; font-weight: 600; }
 
 .analysis-box {
   padding: 12px 14px;
-  background: #ecf5ff;
-  border-radius: 8px;
-  font-size: 0.85em;
-  color: #555;
+  background: var(--primary-bg, rgba(217,119,87,0.06));
+  border: 1px solid var(--hairline, #e3dbd0);
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  color: var(--muted, #6b655c);
 }
 
-.analysis-box p { margin: 4px 0 0; }
+.analysis-box strong { color: var(--ink, #2a2a2a); }
+.analysis-box p { margin: 4px 0 0; line-height: 1.6; }
 
 .wrong-card-footer {
   display: flex;
@@ -579,9 +560,10 @@ onMounted(() => {
   gap: 8px;
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid var(--hairline, #e3dbd0);
 }
 
+/* ===== 浮动添加按钮 ===== */
 .float-add-btn {
   position: fixed;
   bottom: 80px;
@@ -593,17 +575,18 @@ onMounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  font-size: 1.4em;
+  font-size: 1.5em;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 16px rgba(217, 119, 87, 0.35);
 }
 
+/* ===== 弹窗 ===== */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -614,10 +597,18 @@ onMounted(() => {
 .add-modal {
   max-width: 480px;
   width: 100%;
-  padding: 24px;
+  padding: 28px 24px;
+  background: var(--card-bg, #ffffff);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--hairline, #e3dbd0);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
-.add-modal h3 { margin: 0 0 16px; }
+.add-modal h3 {
+  margin: 0 0 20px;
+  font-size: 1.15em;
+  color: var(--ink, #2a2a2a);
+}
 
 .form-group {
   margin-bottom: 14px;
@@ -626,27 +617,34 @@ onMounted(() => {
 .form-group label {
   display: block;
   margin-bottom: 6px;
-  font-size: 0.85em;
-  color: #555;
+  font-size: 13px;
+  color: var(--ink, #2a2a2a);
+  font-weight: 500;
 }
 
 .form-group input,
 .form-group textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 0.9em;
+  border: 1.5px solid var(--hairline-strong, #ccc2b4);
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink, #2a2a2a);
   outline: none;
   box-sizing: border-box;
+  transition: border-color 0.2s;
 }
 
 .form-group input:focus,
-.form-group textarea:focus { border-color: #409eff; }
+.form-group textarea:focus {
+  border-color: var(--primary, #d97757);
+  box-shadow: 0 0 0 3px var(--primary-bg, rgba(217,119,87,0.12));
+}
 
 .form-error {
-  color: #e74c3c;
-  font-size: 0.85em;
+  color: #c64545;
+  font-size: 13px;
   margin-bottom: 12px;
 }
 
@@ -654,10 +652,10 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+  margin-top: 20px;
 }
 
 @media (max-width: 768px) {
-  .wrong-book-page { padding: 12px; }
   .page-header { flex-direction: column; gap: 10px; align-items: flex-start; }
   .filter-bar { flex-direction: column; gap: 10px; }
   .answer-compare { flex-direction: column; gap: 8px; }

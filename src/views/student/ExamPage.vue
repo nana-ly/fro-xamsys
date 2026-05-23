@@ -17,7 +17,7 @@
         </div>
         <div class="exam-header-right">
           <div class="timer" :class="{ 'timer--warning': remainingSeconds <= 300 }">
-            ⏱ {{ formatTime(remainingSeconds) }}
+            {{ formatTime(remainingSeconds) }}
           </div>
           <button class="btn btn-primary" @click="submitExam">
             交卷
@@ -39,22 +39,24 @@
 
       <!-- 题目列表 -->
       <div v-if="!loading && questions.length > 0" class="questions-area">
-        <!-- 题目导航 -->
+        <!-- 题目导航（答题卡） -->
         <div class="question-nav card">
           <span class="nav-label">答题卡：</span>
-          <button
-            v-for="(q, index) in questions"
-            :key="q.id"
-            :class="['nav-dot', { 
-              answered: answers[q.id] !== undefined && answers[q.id] !== '', 
-              current: currentIndex === index,
-              correct: showResult && answers[q.id] === q.answer,
-              wrong: showResult && answers[q.id] !== q.answer
-            }]"
-            @click="currentIndex = index"
-          >
-            {{ index + 1 }}
-          </button>
+          <div class="nav-grid">
+            <button
+              v-for="(q, index) in questions"
+              :key="q.id"
+              :class="['nav-dot', { 
+                answered: answers[q.id] !== undefined && answers[q.id] !== '', 
+                current: currentIndex === index,
+                correct: showResult && answers[q.id] === q.answer,
+                wrong: showResult && answers[q.id] !== q.answer
+              }]"
+              @click="currentIndex = index"
+            >
+              {{ index + 1 }}
+            </button>
+          </div>
         </div>
 
         <!-- 当前题目 -->
@@ -62,7 +64,7 @@
           <div class="question-header">
             <span class="question-type-badge">{{ typeLabel(currentQuestion.question_type) }}</span>
             <span class="question-difficulty" v-if="currentQuestion.difficulty">
-              {{ '⭐'.repeat(currentQuestion.difficulty) }}
+              {{ '★'.repeat(currentQuestion.difficulty) }}
             </span>
           </div>
 
@@ -164,7 +166,7 @@
               <p>{{ currentQuestion.analysis }}</p>
             </div>
             <button class="btn btn-sm btn-outline ai-btn" @click="openAIQuestion(currentQuestion)">
-              🤖 AI 讲解
+              AI 讲解
             </button>
           </div>
         </div>
@@ -187,7 +189,7 @@
           <h3>确认交卷？</h3>
           <p>已答 {{ answeredCount }} / {{ questions.length }} 题</p>
           <p class="unanswered-warning" v-if="unansweredCount > 0">
-            ⚠️ 还有 {{ unansweredCount }} 题未作答
+            还有 {{ unansweredCount }} 题未作答
           </p>
           <div class="modal-actions">
             <button class="btn btn-outline" @click="showSubmitModal = false">继续答题</button>
@@ -201,7 +203,7 @@
       <!-- 成绩弹窗 -->
       <div v-if="showResultModal" class="modal-overlay">
         <div class="result-modal card">
-          <div class="result-icon">{{ score >= 60 ? '🎉' : '💪' }}</div>
+          <div class="result-icon">{{ score >= 60 ? '\u2713' : '\u2726' }}</div>
           <h2>{{ score >= 60 ? '恭喜完成！' : '继续加油！' }}</h2>
           <div class="result-score">{{ score }} 分</div>
           <p>正确 {{ correctCount }} / {{ questions.length }} 题</p>
@@ -494,7 +496,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .exam-page {
-  padding: 20px;
   max-width: 800px;
   margin: 0 auto;
 }
@@ -503,24 +504,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.btn-back {
-  align-self: flex-start;
-  padding: 8px 20px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9em;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.btn-back:hover {
-  border-color: #409eff;
-  color: #409eff;
-  background: #ecf5ff;
 }
 
 .exam-header {
@@ -533,11 +516,12 @@ onBeforeUnmount(() => {
 .exam-header h2 {
   margin: 0;
   font-size: 1.2em;
+  color: var(--ink, #2a2a2a);
 }
 
 .exam-meta {
-  font-size: 0.85em;
-  color: #888;
+  font-size: 13px;
+  color: var(--muted, #6b655c);
   margin-top: 4px;
   display: flex;
   gap: 12px;
@@ -552,11 +536,12 @@ onBeforeUnmount(() => {
 .timer {
   font-size: 1.4em;
   font-weight: 700;
-  color: #333;
+  color: var(--primary, #d97757);
+  font-family: 'Courier New', monospace;
 }
 
 .timer--warning {
-  color: #e74c3c;
+  color: #c64545;
   animation: blink 1s infinite;
 }
 
@@ -564,65 +549,82 @@ onBeforeUnmount(() => {
   50% { opacity: 0.5; }
 }
 
-.loading-state, .error-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
-}
-
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid #f0f0f0;
-  border-top-color: #409eff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
+/* ===== 题目导航（答题卡） ===== */
 .question-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 14px 16px;
-  align-items: center;
+  padding: 14px 20px;
 }
 
 .nav-label {
-  font-size: 0.85em;
-  color: #666;
-  margin-right: 4px;
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #2c2c2c);
+  margin-bottom: 12px;
+}
+
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px;
 }
 
 .nav-dot {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid #ddd;
-  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-md, 8px);
+  border: 1.5px solid var(--hairline, #e8e0d5);
+  background: var(--card-bg, #ffffff);
   cursor: pointer;
-  font-size: 0.8em;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted, #6b6b6b);
   transition: all 0.2s;
+  font-family: inherit;
+  padding: 0;
+}
+
+.nav-dot:hover {
+  border-color: var(--primary, #d97757);
+  color: var(--primary, #d97757);
 }
 
 .nav-dot.answered {
-  border-color: #409eff;
-  background: #d9ecff;
-  color: #409eff;
+  border-color: var(--primary, #d97757);
+  background: var(--primary-bg, rgba(217,119,87,0.12));
+  color: var(--primary, #d97757);
 }
 
 .nav-dot.current {
-  border-color: #409eff;
-  background: #409eff;
-  color: white;
+  border-color: var(--primary, #d97757);
+  background: var(--primary, #d97757);
+  color: #fff;
   font-weight: 700;
 }
 
-.nav-dot.correct { background: #e8f5e9; border-color: #4caf50; color: #4caf50; }
-.nav-dot.wrong { background: #fef0f0; border-color: #e74c3c; color: #e74c3c; }
+.nav-dot.correct { background: rgba(93,184,114,0.12); border-color: #5db872; color: #5db872; }
+.nav-dot.wrong { background: rgba(198,69,69,0.1); border-color: #c64545; color: #c64545; }
 
+@media (max-width: 900px) {
+  .nav-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .nav-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .nav-dot {
+    font-size: 13px;
+  }
+}
+
+/* ===== 题目卡片 ===== */
 .question-card {
   padding: 24px;
 }
@@ -630,28 +632,32 @@ onBeforeUnmount(() => {
 .question-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
 }
 
 .question-type-badge {
   padding: 3px 10px;
-  background: #d9ecff;
-  color: #409eff;
-  border-radius: 12px;
-  font-size: 0.8em;
+  background: var(--primary-bg, rgba(217,119,87,0.12));
+  color: var(--primary, #d97757);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .question-difficulty {
-  font-size: 0.85em;
+  font-size: 13px;
+  color: var(--muted-soft, #9f988e);
 }
 
 .question-content {
   margin: 0 0 20px 0;
   font-size: 1.05em;
   line-height: 1.7;
-  color: #333;
+  color: var(--ink, #2a2a2a);
 }
 
+/* ===== 选项列表 ===== */
 .options-list {
   display: flex;
   flex-direction: column;
@@ -662,34 +668,36 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
+  border: 1.5px solid var(--hairline, #e3dbd0);
+  border-radius: var(--radius-md, 8px);
   cursor: pointer;
   transition: all 0.2s;
+  background: var(--card-bg, #ffffff);
 }
 
 .option-item:hover:not(.correct-answer):not(.wrong-answer) {
-  border-color: #409eff;
-  background: #ecf5ff;
+  border-color: var(--primary, #d97757);
+  background: var(--primary-bg, rgba(217,119,87,0.06));
 }
 
 .option-item.selected {
-  border-color: #409eff;
-  background: #d9ecff;
+  border-color: var(--primary, #d97757);
+  background: var(--primary-bg, rgba(217,119,87,0.12));
 }
 
 .option-item.correct-answer {
-  border-color: #4caf50;
-  background: #e8f5e9;
+  border-color: #5db872;
+  background: rgba(93,184,114,0.08);
 }
 
 .option-item.wrong-answer {
-  border-color: #e74c3c;
-  background: #fef0f0;
+  border-color: #c64545;
+  background: rgba(198,69,69,0.06);
 }
 
 .option-item input {
   margin-right: 10px;
+  accent-color: var(--primary, #d97757);
 }
 
 .option-key {
@@ -698,53 +706,82 @@ onBeforeUnmount(() => {
   height: 24px;
   align-items: center;
   justify-content: center;
-  background: #f0f0f0;
+  background: var(--hairline, #e3dbd0);
   border-radius: 50%;
   margin-right: 10px;
-  font-size: 0.8em;
+  font-size: 12px;
   font-weight: 600;
+  color: var(--muted, #6b655c);
+  flex-shrink: 0;
 }
 
-.option-text { flex: 1; font-size: 0.9em; }
-.check-mark { color: #4caf50; font-weight: 700; }
-.x-mark { color: #e74c3c; font-weight: 700; }
+.option-item.selected .option-key {
+  background: var(--primary, #d97757);
+  color: #fff;
+}
 
+.option-item.correct-answer .option-key {
+  background: #5db872;
+  color: #fff;
+}
+
+.option-item.wrong-answer .option-key {
+  background: #c64545;
+  color: #fff;
+}
+
+.option-text { flex: 1; font-size: 14px; color: var(--ink, #2a2a2a); }
+.check-mark { color: #5db872; font-weight: 700; margin-left: 8px; }
+.x-mark { color: #c64545; font-weight: 700; margin-left: 8px; }
+
+/* ===== 文本输入 ===== */
 .text-input-area textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 0.95em;
+  border: 1.5px solid var(--hairline-strong, #ccc2b4);
+  border-radius: var(--radius-md, 8px);
+  font-size: 15px;
   outline: none;
   resize: vertical;
   box-sizing: border-box;
+  font-family: inherit;
+  color: var(--ink, #2a2a2a);
+  transition: border-color 0.2s;
 }
 
-.text-input-area textarea:focus { border-color: #409eff; }
+.text-input-area textarea:focus {
+  border-color: var(--primary, #d97757);
+  box-shadow: 0 0 0 3px var(--primary-bg, rgba(217,119,87,0.12));
+}
 
+/* ===== 答案与解析 ===== */
 .answer-section {
   margin-top: 20px;
   padding: 16px;
-  background: #f8f9fa;
-  border-radius: 10px;
+  background: var(--primary-bg, rgba(217,119,87,0.06));
+  border: 1px solid var(--hairline, #e3dbd0);
+  border-radius: var(--radius-md, 8px);
 }
 
 .answer-correct {
   margin-bottom: 8px;
-  font-size: 0.9em;
+  font-size: 14px;
+  color: var(--ink, #2a2a2a);
 }
 
-.answer-correct span { color: #4caf50; font-weight: 600; }
+.answer-correct strong { color: var(--muted, #6b655c); }
+.answer-correct span { color: #5db872; font-weight: 600; }
 
 .answer-analysis {
-  font-size: 0.9em;
-  color: #555;
+  font-size: 14px;
+  color: var(--muted, #6b655c);
 }
 
-.answer-analysis p { margin: 4px 0 0; }
+.answer-analysis p { margin: 4px 0 0; line-height: 1.6; }
 
 .ai-btn { margin-top: 10px; }
 
+/* ===== 题目底部导航 ===== */
 .question-footer {
   display: flex;
   justify-content: space-between;
@@ -752,12 +789,17 @@ onBeforeUnmount(() => {
   padding: 14px 20px;
 }
 
-.progress-text { font-size: 0.9em; color: #888; }
+.progress-text {
+  font-size: 14px;
+  color: var(--muted, #6b655c);
+  font-weight: 500;
+}
 
+/* ===== 弹窗 ===== */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -766,21 +808,46 @@ onBeforeUnmount(() => {
 }
 
 .confirm-modal, .result-modal {
-  max-width: 400px;
+  max-width: 420px;
   width: 100%;
-  padding: 30px;
+  padding: 32px 28px;
   text-align: center;
+  background: var(--card-bg, #ffffff);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--hairline, #e8e0d5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
-.confirm-modal h3 { margin: 0 0 12px; }
-.unanswered-warning { color: #e67e22; font-size: 0.9em; }
+.confirm-modal h3 {
+  margin: 0 0 12px;
+  font-size: 1.15em;
+  color: var(--ink, #2c2c2c);
+}
 
-.result-icon { font-size: 3em; margin-bottom: 10px; }
+.unanswered-warning {
+  color: #d4a017;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.result-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  font-size: 24px;
+  font-weight: 700;
+  background: rgba(93,184,114,0.1);
+  color: #5db872;
+}
 
 .result-score {
   font-size: 2.5em;
   font-weight: 700;
-  color: #409eff;
+  color: var(--primary, #d97757);
   margin: 10px 0;
 }
 
@@ -792,7 +859,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
-  .exam-page { padding: 12px; }
   .exam-header { flex-direction: column; align-items: flex-start; gap: 12px; }
   .exam-header-right { width: 100%; justify-content: space-between; }
   .option-item { padding: 10px 12px; }
