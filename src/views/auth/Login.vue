@@ -64,7 +64,8 @@
 
         <div class="card-footer">
           <span>还没有账号？</span>
-          <router-link :to="`/register?role=${role}`" class="footer-link">立即注册</router-link>
+          <router-link v-if="role !== 'teacher'" :to="`/register?role=${role}`" class="footer-link">立即注册</router-link>
+          <span v-else class="footer-link" style="cursor:pointer" @click="onTeacherRegisterHint">立即注册</span>
         </div>
       </div>
     </main>
@@ -74,6 +75,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 import { login } from '@/api/student'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 
@@ -187,6 +189,14 @@ const handleLogin = async () => {
     loading.value = false
   }
 }
+
+function onTeacherRegisterHint() {
+  ElMessageBox.alert(
+    '教师账号由管理员统一创建和管理，不开放自主注册。<br/>如需开通教师账号，请联系系统管理员。',
+    '提示',
+    { confirmButtonText: '知道了', dangerouslyUseHTMLString: true, type: 'info' }
+  ).catch(() => {})
+}
 </script>
 
 <style scoped>
@@ -253,12 +263,15 @@ const handleLogin = async () => {
 }
 
 .card-title {
+  display: block;
   text-align: center;
   font-size: 22px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 6px;
   letter-spacing: -0.3px;
+  border-left: none;
+  padding-left: 0;
 }
 
 .card-subtitle {
@@ -402,5 +415,47 @@ const handleLogin = async () => {
   .auth-card {
     padding: 28px 20px;
   }
+}
+</style>
+
+<!-- MessageBox 风格覆盖（非 scoped，因为组件渲染在 body 下） -->
+<style>
+.el-message-box {
+  --el-bg-color: var(--card-bg, #ffffff);
+  --el-text-color-primary: var(--ink, #2c2c2c);
+  --el-text-color-regular: var(--muted, #6b6b6b);
+  border-radius: 12px;
+  border: 1px solid var(--hairline, #e8e0d5);
+  overflow: hidden;
+}
+
+html[data-theme="dark"] .el-message-box {
+  --el-bg-color: var(--card-bg, #222222);
+  --el-text-color-primary: var(--ink, #e8e4e0);
+  --el-text-color-regular: var(--muted, #aaa6a0);
+  border-color: var(--hairline, #3a3a3a);
+}
+
+.el-message-box__title {
+  color: var(--ink, #2c2c2c) !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+}
+
+.el-message-box__message {
+  color: var(--muted, #6b6b6b) !important;
+  font-size: 14px !important;
+  line-height: 1.8 !important;
+}
+
+.el-message-box__headerbtn {
+  color: var(--muted, #9f9f9f);
+}
+
+.el-message-box .el-button--primary {
+  --el-button-bg-color: var(--primary, #d97757);
+  --el-button-border-color: var(--primary, #d97757);
+  --el-button-hover-bg-color: var(--primary-active, #c46a4a);
+  --el-button-hover-border-color: var(--primary-active, #c46a4a);
 }
 </style>

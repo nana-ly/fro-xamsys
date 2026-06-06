@@ -465,6 +465,7 @@ function handleTabSwitch() {
   if (document.hidden && examRecordId.value) {
     fetch('/api/student/api/report_tab_switch/', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ exam_record_id: examRecordId.value })
     })
@@ -472,15 +473,14 @@ function handleTabSwitch() {
     .then(data => {
       if (data.force_submit) {
         alert(data.warning)
-        // 前端算分
         calculateFrontendScore()
-        // 显示成绩弹窗
         showResultModal.value = true
         showResult.value = true
       } else if (data.warning) {
         alert(data.warning)
       }
     })
+    .catch(() => { /* 静默：网络异常不影响答题 */ })
   }
 }
 
@@ -522,6 +522,7 @@ async function loadExam() {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
     })
+    if (!startRes.ok) throw new Error('开始考试失败')
     const startData = await startRes.json()
     examRecordId.value = startData.exam_record_id
   } catch (err) {

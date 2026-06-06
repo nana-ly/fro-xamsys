@@ -20,6 +20,23 @@
           </svg>
         </div>
         <h1 class="card-title">{{ role === 'teacher' ? '教师注册' : '学生注册' }}</h1>
+
+        <!-- 教师注册：不开放自主注册，提示联系管理员 -->
+        <template v-if="role === 'teacher'">
+          <div class="teacher-register-hint">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d97757" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p class="hint-text">教师账号由管理员统一创建和管理，不开放自主注册。</p>
+            <p class="hint-sub">如需开通教师账号，请联系系统管理员。</p>
+          </div>
+          <div class="card-footer">
+            <router-link to="/login?role=teacher" class="footer-link">返回教师登录</router-link>
+          </div>
+        </template>
+
+        <!-- 学生注册：正常表单 -->
+        <template v-else>
         <p class="card-subtitle">创建您的账号，快速开始使用</p>
 
         <form class="auth-form" @submit.prevent="handleRegister">
@@ -70,6 +87,7 @@
           <span>已有账号？</span>
           <router-link :to="`/login?role=${role}`" class="footer-link">立即登录</router-link>
         </div>
+        </template>
       </div>
     </main>
   </div>
@@ -211,12 +229,15 @@ const handleRegister = async () => {
 }
 
 .card-title {
+  display: block;
   text-align: center;
   font-size: 22px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 6px;
   letter-spacing: -0.3px;
+  border-left: none;
+  padding-left: 0;
 }
 
 .card-subtitle {
@@ -224,6 +245,30 @@ const handleRegister = async () => {
   font-size: 14px;
   color: var(--muted);
   margin-bottom: 28px;
+}
+
+/* 教师注册提示 */
+.teacher-register-hint {
+  text-align: center;
+  padding: 24px 0 12px;
+}
+
+.teacher-register-hint svg {
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.hint-text {
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.hint-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 0;
 }
 
 .auth-form {
