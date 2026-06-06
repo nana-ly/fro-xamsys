@@ -99,7 +99,7 @@ export function saveProgress(examId, answers) {
 
 // 获取错题本列表
 export function getWrongBook(params = {}) {
-  return api.get('/student/wrongbook/', { params })
+  return api.get('/student/wrongbook/', { params, timeout: 30000 })
 }
 
 // 获取错题统计（只返回数量，用于首页）
@@ -118,6 +118,11 @@ export function addWrongQuestion(questionIdOrData, sourceType = 'main', wrongAns
     source_type: sourceType,
     wrong_answer: wrongAnswer
   })
+}
+
+// 删除错题
+export function deleteWrongQuestion(wrongId) {
+  return api.delete(`/student/wrongbook/${wrongId}/`)
 }
 
 // 标记/取消标记已掌握
@@ -145,7 +150,7 @@ export function aiAskQuestion(questionId, studentQuestion, sourceType = 'main') 
     question_id: questionId,
     student_question: studentQuestion,
     source_type: sourceType
-  })
+  }, { timeout: 60000 })
 }
 
 // ===================== 用户认证相关 =====================
@@ -182,7 +187,7 @@ export function changePassword(data) {
 
 // 忘记密码重置
 export function forgotPassword(data) {
-  return api.post('/student/forgot_password/', data)
+  return api.post('/student/forgot-password/', data)
 }
 
 // ===================== 练习/题库相关 =====================
@@ -209,19 +214,46 @@ export function savePracticeRecord(data) {
 
 // 获取做题记录
 export function getPracticeRecords(params = {}) {
-  return api.get('/student/practice/records/', { params })
+  return api.get('/student/practice/records/', { params, timeout: 30000 })
+}
+
+// ===================== 学习会话相关 =====================
+
+// 开始学习时段
+export function startSession() {
+  return api.post('/student/start_session/')
+}
+
+// 结束学习时段
+export function endSession() {
+  return api.post('/student/end_session/')
 }
 
 // ===================== 学习统计相关 =====================
+
+// 获取今日做题统计（做题数、正确率、已学时长）
+export function getDailyStats() {
+  return api.get('/student/daily_stats/')
+}
+
+// 获取知识点掌握分布
+export function getKnowledgeStats() {
+  return api.get('/student/knowledge_stats/')
+}
+
+// 获取学习时长统计（总量 + 今日/本周/本月 + 每日分布）
+export function getStudyDurationStats() {
+  return api.get('/student/duration_stats/')
+}
 
 // 获取考试记录（用于学习统计）
 export function getExamRecords() {
   return api.get('/exam/records/')
 }
 
-// 获取学习活跃度数据
-export function getStudyActivity() {
-  return api.get('/student/activity/')
+// 获取学习活跃度数据（可选 year/month 参数获取某月每天数据）
+export function getStudyActivity(params = {}) {
+  return api.get('/student/activity/', { params })
 }
 
 // 获取错题统计数据
@@ -232,6 +264,18 @@ export function getWrongStats() {
 // 获取练习和考试记录（历史）
 export function getHistoryRecords(params = {}) {
   return api.get('/student/practice/records/', { params })
+}
+
+// 获取某次做题记录的题目详情
+export function getRecordDetail(recordId) {
+  return api.get(`/student/practice/records/${recordId}/detail/`)
+}
+
+// ===================== 个人资料相关 =====================
+
+// 获取学生个人资料
+export function getProfile() {
+  return api.get('/student/profile/')
 }
 
 export default api

@@ -1,6 +1,6 @@
 <template>
-  <div class="study-heatmap card">
-    <!-- 顶部月份切换栏 -->
+  <div class="profile-heatmap card">
+    <!-- 月份切换栏 -->
     <div class="heatmap-header">
       <h3>📊 学习活跃度</h3>
       <div class="month-switcher">
@@ -10,43 +10,48 @@
       </div>
     </div>
 
-    <!-- 加载态 -->
     <div v-if="loading" class="heatmap-loading">
       <div class="spinner"></div>
     </div>
 
-    <!-- 日历格子 -->
-    <div v-else class="calendar-grid">
-      <div
-        v-for="(cell, idx) in calendarCells"
-        :key="idx"
-        :class="['day-cell', {
-          'is-empty': !cell,
-          'is-today': cell && cell.isToday,
-          'is-dimmed': activeFilter >= 0 && cell && !cell.inFilter
-        }]"
-        :style="cell ? { backgroundColor: cellColor(cell) } : {}"
-        :title="cell ? `${cell.dateStr} — ${cell.count || 0}题` : ''"
-      >
-        <span v-if="cell" class="day-num">{{ cell.day }}</span>
+    <!-- 日历热力图：行=周一到周日，列=第1~5周 -->
+    <div v-else-if="calendarGrid.length" class="calendar-wrap">
+      <table class="calendar-table">
+        <thead>
+          <tr>
+            <th class="row-label"></th>
+            <th v-for="(col, ci) in weekLabels" :key="ci" class="col-label">{{ col }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, ri) in calendarGrid" :key="ri">
+            <td class="row-label">{{ weekDays[ri] }}</td>
+            <td
+              v-for="(day, ci) in row"
+              :key="ci"
+              :class="['day-cell', {
+                'is-empty': !day,
+                'is-today': day && day.isToday
+              }]"
+              :style="day ? { backgroundColor: getColor(day.count) } : {}"
+              :title="day ? `${day.dateStr} — ${day.count || 0}题` : ''"
+            >
+              <span v-if="day" class="day-num">{{ day.day }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 图例放在下面 -->
+      <div class="legend-bar">
+        <div v-for="seg in legendSegments" :key="seg.label" class="legend-tag">
+          <span class="legend-swatch" :style="{ backgroundColor: seg.color }"></span>
+          <span class="legend-text">{{ seg.label }}</span>
+        </div>
       </div>
     </div>
 
-    <!-- 空态 -->
-    <div v-if="!loading && !hasData" class="heatmap-empty">暂无学习记录</div>
-
-    <!-- 图例 -->
-    <div class="legend-bar">
-      <button
-        v-for="(seg, si) in legendSegments"
-        :key="si"
-        :class="['legend-tag', { 'is-active': activeFilter === si }]"
-        @click="toggleFilter(si)"
-      >
-        <span class="legend-swatch" :style="{ backgroundColor: seg.color }"></span>
-        <span class="legend-text">{{ seg.label }}</span>
-      </button>
-    </div>
+    <div v-else class="heatmap-empty">暂无学习记录</div>
   </div>
 </template>
 
@@ -61,92 +66,88 @@ const props = defineProps({
 
 defineEmits(['prev', 'next'])
 
-// ---- 图例定义 ----
-const legendSegments = [
-  { min: 0, max: 0, label: '无', color: '#ebedf0' },
-  { min: 1, max: 20, label: '1-20', color: '#d6e685' },
-  { min: 21, max: 50, label: '21-50', color: '#8cc665' },
-  { min: 51, max: 100, label: '51-100', color: '#44a340' },
-  { min: 101, max: Infinity, label: '101+', color: '#1e6823' }
+const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+
+const colors = [
+  { min: 0, max: 0, color: '#ebedf0', label: '无' },
+  { min: 1, max: 10, color: '#d6e685', label: '1-10' },
+  { min: 11, max: 30, color: '#8cc665', label: '11-30' },
+  { min: 31, max: 60, color: '#44a340', label: '31-60' },
+  { min: 61, max: Infinity, color: '#1e6823', label: '61+' }
 ]
 
-// ---- 状态 ----
+const legendSegments = colors
+
 const loading = ref(false)
 const activityMap = ref({})
-const activeFilter = ref(-1) // -1 = 不筛选
 
 const isCurrentMonth = computed(() => {
-  const n = new Date()
-  return props.year === n.getFullYear() && props.month === n.getMonth() + 1
+  const now = new Date()
+  return props.year === now.getFullYear() && props.month === now.getMonth() + 1
 })
 
-const hasData = computed(() => Object.keys(activityMap.value).length > 0)
+const weekLabels = computed(() => {
+  // 列标签：第1周 ~ 第N周
+  const count = daysInMonth(props.year, props.month)
+  const firstDow = new Date(props.year, props.month - 1, 1).getDay() // 0=Sun
+  const totalSlots = count + (firstDow === 0 ? 6 : firstDow - 1)
+  const weeks = Math.ceil(totalSlots / 7)
+  return Array.from({ length: weeks }, (_, i) => `第${i + 1}周`)
+})
 
-// ---- 获取颜色 ----
+function daysInMonth(y, m) {
+  return new Date(y, m, 0).getDate()
+}
+
 function getColor(count) {
   if (!count || count === 0) return '#ebedf0'
-  if (count <= 20) return '#d6e685'
-  if (count <= 50) return '#8cc665'
-  if (count <= 100) return '#44a340'
+  if (count <= 10) return '#d6e685'
+  if (count <= 30) return '#8cc665'
+  if (count <= 60) return '#44a340'
   return '#1e6823'
 }
 
-function countInSegment(count, seg) {
-  return count >= seg.min && count <= seg.max
-}
-
-// ---- 筛选 ----
-function toggleFilter(si) {
-  activeFilter.value = activeFilter.value === si ? -1 : si
-}
-
-// ---- 日历格子计算 ----
-const calendarCells = computed(() => {
+const calendarGrid = computed(() => {
   const map = activityMap.value
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
-  const daysInMonth = new Date(props.year, props.month, 0).getDate()
+  const count = daysInMonth(props.year, props.month)
   const firstDow = new Date(props.year, props.month - 1, 1).getDay() // 0=Sun
+
+  // 构建当月所有日期数组
+  const allDays = []
+  // 如果1号不是周一，前面补齐空位
   const startCol = firstDow === 0 ? 6 : firstDow - 1 // Mon=0
+  for (let j = 0; j < startCol; j++) allDays.push(null)
 
-  const cells = []
-
-  // 前置空位
-  for (let i = 0; i < startCol; i++) cells.push(null)
-
-  // 本月日子
-  for (let d = 1; d <= daysInMonth; d++) {
+  for (let d = 1; d <= count; d++) {
     const dateStr = `${props.year}-${String(props.month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    const count = map[dateStr] || 0
-    cells.push({
+    allDays.push({
       day: d,
       dateStr,
-      count,
-      isToday: dateStr === todayStr,
-      inFilter: activeFilter.value < 0
-        ? true
-        : countInSegment(count, legendSegments[activeFilter.value])
+      count: map[dateStr] || 0,
+      isToday: dateStr === todayStr
     })
   }
 
-  // 补齐到 7 的倍数（最多 6 行 = 42 格）
-  while (cells.length % 7 !== 0 || cells.length < 28) cells.push(null)
+  // 补齐末尾到整周
+  while (allDays.length % 7 !== 0) allDays.push(null)
 
-  return cells
+  // 转置：行=周一到周日(7行)，列=第N周
+  const totalCols = allDays.length / 7
+  const grid = []
+  for (let row = 0; row < 7; row++) {
+    const rowData = []
+    for (let col = 0; col < totalCols; col++) {
+      rowData.push(allDays[col * 7 + row])
+    }
+    grid.push(rowData)
+  }
+
+  return grid
 })
 
-// ---- 单元格颜色 ----
-function cellColor(cell) {
-  if (!cell) return 'transparent'
-  if (activeFilter.value >= 0 && !cell.inFilter) {
-    // 被筛选时，不在范围内的保持原色但由 CSS 控制透明度
-    return getColor(cell.count)
-  }
-  return getColor(cell.count)
-}
-
-// ---- 数据获取 ----
 async function fetchData() {
   loading.value = true
   try {
@@ -155,7 +156,9 @@ async function fetchData() {
     const data = Array.isArray(raw) ? raw : (raw.data || [])
     const map = {}
     data.forEach(item => {
-      if (item.date) map[item.date] = item.count || 0
+      if (item.date) {
+        map[item.date] = item.count || 0
+      }
     })
     activityMap.value = map
   } catch {
@@ -165,9 +168,7 @@ async function fetchData() {
   }
 }
 
-// 月份变化时重新拉数据
 watch(() => [props.year, props.month], () => {
-  activeFilter.value = -1
   fetchData()
 })
 
@@ -177,7 +178,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.study-heatmap {
+.profile-heatmap {
   padding: 18px 20px;
   background: var(--card-bg, #ffffff);
   border-radius: 12px;
@@ -195,8 +196,8 @@ onMounted(() => {
 .heatmap-header h3 {
   margin: 0;
   font-size: 1.05em;
-  font-weight: 600;
   color: var(--ink, #2a2a2a);
+  font-weight: 600;
 }
 
 .month-switcher {
@@ -245,7 +246,7 @@ onMounted(() => {
 .heatmap-loading {
   display: flex;
   justify-content: center;
-  padding: 30px 0;
+  padding: 40px 0;
 }
 
 .spinner {
@@ -257,35 +258,52 @@ onMounted(() => {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 .heatmap-empty {
   text-align: center;
-  padding: 30px 0;
+  padding: 40px 0;
   color: var(--muted, #6b655c);
   font-size: 13px;
 }
 
-/* ===== 日历格子（7列 CSS Grid） ===== */
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  max-width: 480px;
+/* ===== 日历表格 ===== */
+.calendar-wrap { }
+
+.calendar-table {
+  border-collapse: separate;
+  border-spacing: 4px;
   margin: 0 auto;
 }
 
+.row-label,
+.col-label {
+  font-size: 11px;
+  color: var(--muted-soft, #9f988e);
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.row-label {
+  padding-right: 8px;
+  width: 32px;
+}
+
+.col-label {
+  padding-bottom: 4px;
+}
+
 .day-cell {
-  aspect-ratio: 1.2 / 1;
+  width: 36px;
+  height: 36px;
   border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
+  vertical-align: middle;
   border: 1px solid transparent;
-  cursor: default;
-  transition: opacity 0.2s, border-color 0.15s;
-  min-width: 38px;
-  min-height: 32px;
+  transition: border-color 0.15s;
 }
 
 .day-cell:not(.is-empty):hover {
@@ -298,11 +316,7 @@ onMounted(() => {
 
 .day-cell.is-today {
   border-color: var(--primary, #d97757) !important;
-  box-shadow: 0 0 0 1.5px var(--primary, #d97757);
-}
-
-.day-cell.is-dimmed {
-  opacity: 0.2;
+  box-shadow: 0 0 0 1px var(--primary, #d97757);
 }
 
 .day-num {
@@ -317,7 +331,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 8px;
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--hairline, #e3dbd0);
@@ -328,22 +342,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  transition: border-color 0.15s, background 0.15s;
-}
-
-.legend-tag:hover {
-  border-color: var(--muted-soft, #9f988e);
-}
-
-.legend-tag.is-active {
-  border-color: var(--primary, #d97757);
-  background: var(--primary-bg, rgba(217,119,87,0.08));
 }
 
 .legend-swatch {
@@ -361,22 +359,31 @@ onMounted(() => {
 
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
-  .study-heatmap {
+  .profile-heatmap {
     padding: 14px 12px;
   }
 
-  .calendar-grid {
-    gap: 3px;
-    max-width: 380px;
+  .calendar-table {
+    border-spacing: 2px;
   }
 
   .day-cell {
-    min-width: 30px;
-    min-height: 26px;
+    width: 26px;
+    height: 26px;
   }
 
   .day-num {
-    font-size: 11px;
+    font-size: 10px;
+  }
+
+  .row-label,
+  .col-label {
+    font-size: 10px;
+  }
+
+  .row-label {
+    width: 26px;
+    padding-right: 4px;
   }
 }
 </style>

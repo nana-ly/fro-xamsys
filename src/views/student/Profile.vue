@@ -112,15 +112,20 @@
               </svg>
             </div>
             <div class="stat-info">
-              <span class="stat-num">{{ stats.totalHours }}h</span>
+              <span class="stat-num">{{ stats.totalDuration || '0小时0分钟' }}</span>
               <span class="stat-text">学习时长</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 学习活跃度热力图 -->
-      <StudyHeatmap :studyData="studyData" />
+      <!-- 学习活跃度日历热力图 -->
+      <StudyHeatmap
+        :year="heatmapYear"
+        :month="heatmapMonth"
+        @prev="prevHeatmapMonth"
+        @next="nextHeatmapMonth"
+      />
 
     </div>
 
@@ -203,7 +208,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
-import { updateProfile, changePassword } from '@/api/student'
+import { updateProfile, changePassword, getProfile } from '@/api/student'
 import request from '@/utils/request'
 
 const router = useRouter()
@@ -226,10 +231,33 @@ const stats = ref({
   completedExams: 0,
   masteredQuestions: 0,
   correctRate: 0,
-  totalHours: 0
+  totalDuration: '',
 })
 
-const studyData = ref([])
+// 热力图月份切换
+const now = new Date()
+const heatmapYear = ref(now.getFullYear())
+const heatmapMonth = ref(now.getMonth() + 1)
+
+function prevHeatmapMonth() {
+  if (heatmapMonth.value === 1) {
+    heatmapYear.value--
+    heatmapMonth.value = 12
+  } else {
+    heatmapMonth.value--
+  }
+}
+
+function nextHeatmapMonth() {
+  const n = new Date()
+  if (heatmapYear.value === n.getFullYear() && heatmapMonth.value === n.getMonth() + 1) return
+  if (heatmapMonth.value === 12) {
+    heatmapYear.value++
+    heatmapMonth.value = 1
+  } else {
+    heatmapMonth.value++
+  }
+}
 
 const displayName = computed(() => profile.value.real_name || profile.value.username || '同学')
 
@@ -267,30 +295,37 @@ const progressMastered = computed(() => {
   return Math.round((stats.value.masteredQuestions / stats.value.wrongCount) * 100)
 })
 
+function fmtDurationFromHours(hours) {
+  const totalSeconds = Math.round(hours * 3600)
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  if (h > 0 && m > 0) return `${h}小时${m}分钟`
+  if (h > 0) return `${h}小时`
+  if (m > 0) return `${m}分钟`
+  return '0小时0分钟'
+}
+
 async function fetchProfileData() {
   try {
-    const res = await request({
-      url: '/student/profile/',
-      method: 'get'
-    })
+    const res = await getProfile()
+    const data = res.data || res
     profile.value = {
-      id: res.id,
-      username: res.username || '',
-      real_name: res.real_name || '',
-      phone: res.phone || '',
-      email: res.email || ''
+      id: data.id,
+      username: data.username || '',
+      real_name: data.real_name || '',
+      phone: data.phone || '',
+      email: data.email || ''
     }
     stats.value = {
-      totalExams: res.total_exams || 0,
-      avgScore: res.avg_score || 0,
-      wrongCount: res.total_wrong || 0,
-      studyDays: res.study_days || 0,
-      completedExams: res.total_exams || 0,
-      masteredQuestions: res.mastered_wrong || 0,
-      correctRate: res.correct_rate || 0,
-      totalHours: res.study_hours || 0
+      totalExams: data.total_exams || 0,
+      avgScore: data.avg_score || 0,
+      wrongCount: data.total_wrong || 0,
+      studyDays: data.study_days || 0,
+      completedExams: data.total_exams || 0,
+      masteredQuestions: data.mastered_wrong || 0,
+      correctRate: data.correct_rate || 0,
+      totalDuration: fmtDurationFromHours(data.study_hours || 0),
     }
-    studyData.value = []
   } catch {
     // keep default zeros on error
   } finally {
@@ -405,6 +440,7 @@ onMounted(() => {
 .actions-bar {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .btn {

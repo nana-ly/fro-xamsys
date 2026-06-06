@@ -28,10 +28,8 @@
           </button>
           <button class="btn btn-welcome" @click="showJoinDialog = true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              <line x1="11" y1="8" x2="11" y2="14"/>
-              <line x1="8" y1="11" x2="14" y2="11"/>
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
             </svg>
             加入班级
           </button>
@@ -45,9 +43,52 @@
         </div>
       </div>
 
+      <!-- 学习活跃趋势（按月） -->
+      <div class="month-chart card">
+        <div class="month-chart-header">
+          <h4>📈 学习活跃趋势</h4>
+          <div class="month-switcher">
+            <button class="month-arrow" @click="prevMonth">‹</button>
+            <span class="month-label">{{ monthLabel }}</span>
+            <button class="month-arrow" @click="nextMonth" :disabled="isCurrentMonth">›</button>
+          </div>
+        </div>
+        <div ref="monthChartRef" class="chart-box-month" v-show="dailyData.length"></div>
+        <div class="chart-empty" v-if="!dailyData.length && !dailyLoading">暂无数据</div>
+      </div>
 
-      <!-- 学习活跃度热力图 -->
-      <StudyHeatmap :studyData="studyData" class="study-heatmap" />
+      <!-- 统计卡片：两列并排 -->
+      <div class="stats-row">
+        <!-- 卡片1：今日做题统计 -->
+        <div class="stats-card card">
+          <h4>📋 今日做题统计</h4>
+          <div class="stat-metrics">
+            <div class="metric">
+              <span class="metric-val">{{ todayStats.count || 0 }}</span>
+              <span class="metric-label">做题数</span>
+            </div>
+            <div class="metric">
+              <span class="metric-val">{{ todayStats.correctCount || 0 }}</span>
+              <span class="metric-label">正确题数</span>
+            </div>
+            <div class="metric">
+              <span class="metric-val">{{ todayStats.correctRate || 0 }}%</span>
+              <span class="metric-label">正确率</span>
+            </div>
+            <div class="metric">
+              <span class="metric-val">{{ todayStats.duration || '--' }}</span>
+              <span class="metric-label">已学时长</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 卡片2：知识点掌握分布 -->
+        <div class="stats-card card">
+          <h4>🎯 知识点掌握分布</h4>
+          <div ref="knowledgeChartRef" class="chart-box" v-show="knowledgeData.length"></div>
+          <div class="chart-empty" v-if="!knowledgeData.length && !statsLoading">暂无数据</div>
+        </div>
+      </div>
 
       <!-- 练习模式入口 -->
       <div class="practice-section card">
@@ -69,6 +110,20 @@
           <button class="btn btn-secondary" @click="openAIQuestion">
             AI 智能出题
           </button>
+        </div>
+      </div>
+
+      <!-- 最近做题记录 -->
+      <div class="recent-records-section card" v-if="recentRecords.length > 0">
+        <h3>📊 最近做题记录</h3>
+        <div class="records-list">
+          <div v-for="rec in recentRecords" :key="rec.id || Math.random()" class="record-item">
+            <span class="record-content">{{ (rec.question_content || '').substring(0, 40) }}{{ (rec.question_content || '').length > 40 ? '...' : '' }}</span>
+            <span :class="['record-status', rec.is_correct ? 'correct' : 'wrong']">
+              {{ rec.is_correct ? '✓ 正确' : '✗ 错误' }}
+            </span>
+            <span class="record-time">{{ rec.created_at?.substring(0, 10) }}</span>
+          </div>
         </div>
       </div>
 
@@ -160,6 +215,8 @@
                 <option value="choice">单选题</option>
                 <option value="judge">判断题</option>
                 <option value="multiple">多选题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="essay">简答题</option>
               </select>
             </div>
             <div class="form-group">
@@ -197,29 +254,21 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- 加入班级弹窗 -->
-        <div v-if="showJoinDialog" class="modal-overlay" @click.self="closeJoinDialog">
-          <div class="modal-dialog">
-            <h3>加入班级</h3>
-            <p class="join-desc">请输入教师提供的班级码</p>
-            <div class="form-group">
-              <input
-                v-model="joinClassCode"
-                type="text"
-                placeholder="例如：C12022123456"
-                class="form-input join-code-input"
-                @keyup.enter="handleJoinClass"
-              />
-            </div>
-            <div class="form-error" v-if="joinError">{{ joinError }}</div>
-            <div class="modal-actions">
-              <button class="btn btn-secondary" @click="closeJoinDialog">取消</button>
-              <button class="btn btn-primary" @click="handleJoinClass" :disabled="joinLoading">
-                {{ joinLoading ? '加入中...' : '加入' }}
-              </button>
-            </div>
-          </div>
+    <!-- 加入班级弹窗 -->
+    <div v-if="showJoinDialog" class="modal-overlay" @click.self="closeJoinDialog">
+      <div class="modal-dialog">
+        <h3>加入班级</h3>
+        <p class="join-desc">请输入教师提供的班级码</p>
+        <div class="form-group">
+          <input v-model="joinClassCode" type="text" placeholder="例如：C12022123456" class="form-input join-code-input" @keyup.enter="handleJoinClass" />
+        </div>
+        <div class="form-error" v-if="joinError">{{ joinError }}</div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeJoinDialog">取消</button>
+          <button class="btn btn-primary" @click="handleJoinClass" :disabled="joinLoading">{{ joinLoading ? '加入中...' : '加入' }}</button>
         </div>
       </div>
     </div>
@@ -227,16 +276,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onActivated } from 'vue'
+import { ref, reactive, computed, onMounted, onActivated, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getExamList, getWrongCount, aiGenerateQuestion, getStudyActivity, joinClass } from '@/api/student'
-import StudyHeatmap from '@/components/StudyHeatmap.vue'
+import { getExamList, getWrongCount, aiGenerateQuestion, getPracticeRecords, getStudyActivity, getKnowledgeStats, startSession, endSession, getDailyStats, joinClass } from '@/api/student'
+import * as echarts from 'echarts'
 
 const router = useRouter()
 const userName = ref(localStorage.getItem('student_userName') || '同学')
 const examList = ref([])
 const examLoading = ref(true)
 const wrongCount = ref(0)
+const showJoinDialog = ref(false)
+const joinLoading = ref(false)
+const joinClassCode = ref('')
+const joinError = ref('')
+const recentRecords = ref([])
 const showAIQuestion = ref(false)
 const aiLoading = ref(false)
 const aiLoadingText = ref('')
@@ -250,7 +304,178 @@ const aiParams = reactive({
   count: 5
 })
 
-const studyData = ref([])
+// ===================== 统计卡片 =====================
+const statsLoading = ref(false)
+const dailyLoading = ref(false)
+const todayStats = reactive({ count: 0, correctCount: 0, correctRate: 0, duration: '--' })
+const dailyData = ref([])
+const knowledgeData = ref([])
+const monthChartRef = ref(null)
+const knowledgeChartRef = ref(null)
+let monthChart = null
+let knowledgeChart = null
+
+// 月份切换
+const now = new Date()
+const currentYear = ref(now.getFullYear())
+const currentMonth = ref(now.getMonth() + 1)
+
+const monthLabel = computed(() => `${currentYear.value}年${currentMonth.value}月`)
+const isCurrentMonth = computed(() => {
+  const n = new Date()
+  return currentYear.value === n.getFullYear() && currentMonth.value === n.getMonth() + 1
+})
+
+function prevMonth() {
+  if (currentMonth.value === 1) {
+    currentYear.value--
+    currentMonth.value = 12
+  } else {
+    currentMonth.value--
+  }
+  loadMonthChart()
+}
+
+function nextMonth() {
+  if (isCurrentMonth.value) return
+  if (currentMonth.value === 12) {
+    currentYear.value++
+    currentMonth.value = 1
+  } else {
+    currentMonth.value++
+  }
+  loadMonthChart()
+}
+
+async function loadMonthChart() {
+  dailyLoading.value = true
+  try {
+    const res = await getStudyActivity({ year: currentYear.value, month: currentMonth.value })
+    dailyData.value = Array.isArray(res.data) ? res.data : (res.data?.data || [])
+    await nextTick()
+    renderMonthChart()
+  } catch (err) {
+    console.error('加载月度趋势失败:', err)
+    dailyData.value = []
+  } finally {
+    dailyLoading.value = false
+  }
+}
+
+// 格式化秒数为 时:分
+function fmtDuration(seconds) {
+  if (!seconds || seconds <= 0) return '--'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h${m}m`
+  return `${m}m`
+}
+
+async function loadStatsData() {
+  statsLoading.value = true
+  try {
+    const [dailyRes, knowledgeRes] = await Promise.all([
+      getDailyStats(),
+      getKnowledgeStats()
+    ])
+
+    const daily = dailyRes.data || {}
+    todayStats.count = daily.count || 0
+    todayStats.correctCount = daily.correct_count || 0
+    todayStats.correctRate = daily.correct_rate || 0
+    todayStats.duration = fmtDuration(daily.duration || 0)
+
+    // 知识点分布
+    knowledgeData.value = knowledgeRes.data || []
+
+    await nextTick()
+    renderKnowledgeChart()
+  } catch (err) {
+    console.error('加载统计数据失败:', err)
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+function renderMonthChart() {
+  if (!monthChartRef.value || !dailyData.value.length) return
+  if (monthChart) monthChart.dispose()
+  monthChart = echarts.init(monthChartRef.value)
+  monthChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      formatter: p => `${currentMonth.value}月${p[0].axisValue}日<br/>做题数：<b>${p[0].value}</b>`
+    },
+    grid: { left: 12, right: 12, top: 8, bottom: 4 },
+    xAxis: {
+      type: 'category',
+      data: dailyData.value.map(d => {
+        const day = d.date ? d.date.split('-').pop().replace(/^0/, '') : ''
+        return day
+      }),
+      axisLabel: { fontSize: 10, color: '#9f988e' },
+      axisLine: { show: false },
+      axisTick: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { color: '#f0ede8', type: 'dashed' } },
+      axisLabel: { fontSize: 10, color: '#9f988e' },
+      minInterval: 1
+    },
+    series: [{
+      type: 'line',
+      data: dailyData.value.map(d => d.count || 0),
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 5,
+      lineStyle: { color: '#8cc665', width: 2 },
+      itemStyle: { color: '#44a340' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(140,198,101,0.3)' },
+          { offset: 1, color: 'rgba(140,198,101,0.02)' }
+        ])
+      }
+    }]
+  })
+}
+
+function renderKnowledgeChart() {
+  if (!knowledgeChartRef.value || !knowledgeData.value.length) return
+  if (knowledgeChart) knowledgeChart.dispose()
+  knowledgeChart = echarts.init(knowledgeChartRef.value)
+
+  const data = knowledgeData.value.map(d => ({
+    name: d.knowledge_point,
+    value: d.total
+  }))
+
+  knowledgeChart.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: p => `${p.name}<br/>${p.value}题 · 正确率 ${(knowledgeData.value[p.dataIndex].correct / Math.max(p.value, 1) * 100).toFixed(1)}%`
+    },
+    series: [{
+      type: 'pie',
+      radius: ['45%', '70%'],
+      center: ['50%', '50%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 3, borderColor: '#fff', borderWidth: 2 },
+      label: { show: false },
+      emphasis: {
+        label: { show: true, fontSize: 13, fontWeight: 'bold' },
+        scaleSize: 8
+      },
+      data,
+      color: ['#44a340', '#8cc665', '#d6e685', '#67b168', '#2d7d2d', '#a8d8a8']
+    }]
+  })
+}
+
+// 响应式重绘
+watch(dailyData, async () => { await nextTick(); renderMonthChart() })
+watch(knowledgeData, async () => { await nextTick(); renderKnowledgeChart() })
 
 // 从题库选题弹窗
 const showPracticeDialog = ref(false)
@@ -261,20 +486,14 @@ const practiceParams = reactive({
   count: 10
 })
 
-// 加入班级
-const showJoinDialog = ref(false)
-const joinLoading = ref(false)
-const joinClassCode = ref('')
-const joinError = ref('')
-
-// 获取学习活跃度数据
-async function fetchStudyData() {
+async function loadRecentRecords() {
   try {
-    const res = await getStudyActivity()
-    studyData.value = res.data || []
+    const res = await getPracticeRecords({ page: 1, page_size: 10 })
+    const records = res.data?.results || []
+    recentRecords.value = records.filter(r => r.question_content)
   } catch (error) {
-    console.error('获取学习活跃度数据失败:', error)
-    studyData.value = []
+    console.error('获取做题记录失败:', error)
+    recentRecords.value = []
   }
 }
 
@@ -300,8 +519,7 @@ async function loadExamList() {
 async function loadWrongCount() {
   try {
     const res = await getWrongCount()
-    const data = res.data || {}
-    wrongCount.value = data.total || 0
+    wrongCount.value = res.data?.total || 0
   } catch (error) {
     console.error('获取错题数量失败:', error)
     wrongCount.value = 0
@@ -318,6 +536,31 @@ function openPracticeDialog() {
   practiceParams.questionType = ''
   practiceParams.count = 10
   showPracticeDialog.value = true
+}
+
+function closeJoinDialog() { showJoinDialog.value = false; joinClassCode.value = ''; joinError.value = '' }
+
+async function handleJoinClass() {
+  const code = joinClassCode.value.trim()
+  if (!code) { joinError.value = '请输入班级码'; return }
+  joinError.value = ''; joinLoading.value = true
+  try {
+    const res = await joinClass(code)
+    const data = res.data || res
+    alert(`成功加入班级「${data.data?.class_name || data.class_name || '未知班级'}」！`)
+    closeJoinDialog(); loadExamList()
+  } catch (error) {
+    const detail = error.response?.data
+    if (detail?.non_field_errors) {
+      const msg = Array.isArray(detail.non_field_errors) ? detail.non_field_errors[0] : detail.non_field_errors
+      if (msg.includes('已经加入过该班级')) { alert('您已在该班级中，无需重复加入'); closeJoinDialog(); loadExamList(); joinLoading.value = false; return }
+      joinError.value = msg
+    } else if (detail?.class_code) {
+      joinError.value = detail.class_code[0] || '班级码无效'
+    } else {
+      joinError.value = detail?.detail || detail?.error || '加入失败，请检查班级码是否正确'
+    }
+  } finally { joinLoading.value = false }
 }
 
 function startPracticeFromBank() {
@@ -340,60 +583,10 @@ function openAIQuestion() {
 function goAIPractice() {
   if (aiResult.value) {
     const questions = Array.isArray(aiResult.value) ? aiResult.value : [aiResult.value]
-    sessionStorage.setItem('aiQuestions', JSON.stringify(questions))
-    console.log('stored questions:', JSON.stringify(questions))
+    localStorage.setItem('aiQuestions', JSON.stringify(questions))
     router.push('/student/practice?source=ai')
   }
   showAIQuestion.value = false
-}
-
-async function handleJoinClass() {
-  const code = joinClassCode.value.trim()
-  if (!code) {
-    joinError.value = '请输入班级码'
-    return
-  }
-  joinError.value = ''
-  joinLoading.value = true
-  try {
-    const res = await joinClass(code)
-    const data = res.data || res
-    // 后端返回 { message, data: { class_name, ... } }
-    const className = data.data?.class_name || data.class_name || '未知班级'
-    alert(`成功加入班级「${className}」！`)
-    closeJoinDialog()
-    loadExamList()
-  } catch (error) {
-    const detail = error.response?.data
-    if (detail?.non_field_errors) {
-      const msg = Array.isArray(detail.non_field_errors) ? detail.non_field_errors[0] : detail.non_field_errors
-      if (msg.includes('已经加入过该班级')) {
-        // 已在班级中，不是错误
-        alert('您已在该班级中，无需重复加入')
-        closeJoinDialog()
-        loadExamList()
-        joinLoading.value = false
-        return
-      }
-      joinError.value = msg
-    } else if (detail?.class_code) {
-      joinError.value = detail.class_code[0] || '班级码无效'
-    } else if (detail?.detail) {
-      joinError.value = detail.detail
-    } else if (detail?.error) {
-      joinError.value = detail.error
-    } else {
-      joinError.value = '加入失败，请检查班级码是否正确'
-    }
-  } finally {
-    joinLoading.value = false
-  }
-}
-
-function closeJoinDialog() {
-  showJoinDialog.value = false
-  joinClassCode.value = ''
-  joinError.value = ''
 }
 
 async function generateAIQuestion() {
@@ -414,7 +607,6 @@ async function generateAIQuestion() {
 
     const questions = res.data?.questions || []
     aiResult.value = questions
-    console.log('aiResult after generate:', JSON.stringify(aiResult.value))
   } catch (error) {
     const errMsg = error.response?.data?.error || 'AI生成失败，请稍后重试'
     aiError.value = errMsg
@@ -428,15 +620,39 @@ async function generateAIQuestion() {
 function loadAllData() {
   loadExamList()
   loadWrongCount()
-  fetchStudyData()
+  loadStatsData()
+  loadMonthChart()
+  loadRecentRecords()
 }
 
 onMounted(() => {
   loadAllData()
+  startSession().catch(err => console.error('开始学习时段失败:', err))
 })
 
 onActivated(() => {
   loadAllData()
+})
+
+// 页面关闭/刷新时发送结束请求（keepalive 保证请求不丢失）
+function handleBeforeUnload() {
+  const token = sessionStorage.getItem('student_token') || localStorage.getItem('student_token')
+  fetch('/api/student/end_session/', {
+    method: 'POST',
+    keepalive: true,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && token !== 'true' ? { 'Authorization': `Token ${token}` } : {})
+    }
+  }).catch(() => {})
+}
+window.addEventListener('beforeunload', handleBeforeUnload)
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (monthChart) monthChart.dispose()
+  if (knowledgeChart) knowledgeChart.dispose()
+  endSession().catch(err => console.error('结束学习时段失败:', err))
 })
 </script>
 
@@ -535,6 +751,136 @@ onActivated(() => {
   transform: translateY(-1px);
 }
 
+/* ===== 月度趋势图 ===== */
+.month-chart {
+  padding: 18px 20px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  border: 1px solid var(--hairline, #e3dbd0);
+}
+
+.month-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.month-chart-header h4 {
+  margin: 0;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--ink, #2a2a2a);
+}
+
+.month-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.month-label {
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--primary, #d97757);
+  min-width: 80px;
+  text-align: center;
+  user-select: none;
+}
+
+.month-arrow {
+  border: none;
+  background: var(--primary-bg, rgba(217,119,87,0.1));
+  color: var(--primary, #d97757);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  line-height: 1;
+  transition: background 0.2s;
+}
+
+.month-arrow:hover:not(:disabled) {
+  background: var(--primary, #d97757);
+  color: #fff;
+}
+
+.month-arrow:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chart-box-month {
+  width: 100%;
+  height: 200px;
+}
+
+/* ===== 统计卡片行 ===== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.stats-card {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--hairline, #e3dbd0);
+}
+
+.stats-card h4 {
+  margin: 0 0 12px 0;
+  font-size: 0.9em;
+  font-weight: 600;
+  color: var(--ink, #2a2a2a);
+}
+
+.stat-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.metric {
+  text-align: center;
+  padding: 6px 0;
+}
+
+.metric-val {
+  display: block;
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--ink, #2a2a2a);
+  line-height: 1.2;
+}
+
+.metric-label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-soft, #9f988e);
+  margin-top: 2px;
+}
+
+.chart-box {
+  width: 100%;
+  height: 180px;
+}
+
+.chart-empty {
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-soft, #9f988e);
+  font-size: 13px;
+}
+
 /* ===== 卡片区域 ===== */
 .practice-section {
   padding: 24px;
@@ -562,28 +908,57 @@ onActivated(() => {
   align-items: flex-start;
 }
 
-.history-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 24px;
+/* ===== 最近做题记录 ===== */
+.recent-records-section {
+  padding: 20px;
 }
 
-.history-card .card-content {
-  flex: 1;
-}
-
-.history-card h3 {
-  margin: 0 0 4px 0;
+.recent-records-section h3 {
+  margin: 0 0 12px 0;
   font-size: 1.1em;
-  font-weight: 600;
-  color: var(--ink, #2a2a2a);
 }
 
-.history-card .section-desc {
-  margin: 0;
-  font-size: 14px;
-  color: var(--muted, #6b6b6b);
+.records-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 0.85em;
+}
+
+.record-content {
+  flex: 1;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-status {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.record-status.correct {
+  color: #4caf50;
+}
+
+.record-status.wrong {
+  color: #e74c3c;
+}
+
+.record-time {
+  color: #999;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 
 /* ===== 待考试卷 ===== */
@@ -663,7 +1038,7 @@ onActivated(() => {
   width: 100%;
   max-width: 480px;
   padding: 28px 24px;
-  background: var(--card-bg, #ffffff);
+  background: var(--card-bg,rgb(236, 199, 157));
   border-radius: var(--radius-lg, 12px);
   border: 1px solid var(--hairline, #e3dbd0);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
@@ -714,34 +1089,6 @@ onActivated(() => {
   width: 100%;
 }
 
-.join-desc {
-  margin: -12px 0 16px 0;
-  color: var(--muted, #6b655c);
-  font-size: 14px;
-}
-
-.join-code-input {
-  font-family: 'Courier New', monospace;
-  font-size: 16px;
-  text-align: center;
-  letter-spacing: 2px;
-}
-
-/* ===== 热力图纵向加长 ===== */
-.study-heatmap {
-  margin-bottom: 20px;
-}
-
-.study-heatmap :deep(.heatmap-chart) {
-  height: 280px;
-}
-
-@media (max-width: 768px) {
-  .study-heatmap :deep(.heatmap-chart) {
-    height: 220px;
-  }
-}
-
 /* ===== 响应式 ===== */
 @media (max-width: 768px) {
   .student-home {
@@ -771,10 +1118,11 @@ onActivated(() => {
     flex-direction: column;
   }
 
-  .history-card {
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
+  .stats-row {
+    grid-template-columns: 1fr;
   }
 }
+
+.join-desc { margin: -12px 0 16px 0; color: var(--muted, #6b655c); font-size: 14px; }
+.join-code-input { font-family: 'Courier New', monospace; font-size: 16px; text-align: center; letter-spacing: 2px; }
 </style>

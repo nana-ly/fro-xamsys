@@ -8,13 +8,13 @@
         <h2>我的错题本</h2>
         <div class="header-stats">
           <span class="stat-item">
-            总错题：<strong>{{ wrongList.length }}</strong>
+            总错题：<strong>{{ totalItems }}</strong>
           </span>
           <span class="stat-item mastered">
-            已掌握：<strong>{{ masteredCount }}</strong>
+            已掌握：<strong>{{ filteredMastered }}</strong>
           </span>
           <span class="stat-item unmastered">
-            未掌握：<strong>{{ wrongList.length - masteredCount }}</strong>
+            未掌握：<strong>{{ filteredUnmastered }}</strong>
           </span>
         </div>
       </div>
@@ -46,8 +46,10 @@
             v-model="filterKeyword" 
             type="text" 
             placeholder="搜索题目或知识点..."
-            @input="applyFilter"
+            @keyup.enter="handleSearch"
           />
+          <button class="btn btn-sm btn-primary" @click="handleSearch">搜索</button>
+          <button class="btn btn-sm btn-outline" @click="handleReset">重置</button>
         </div>
       </div>
 
@@ -58,7 +60,7 @@
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="displayList.length === 0" class="empty-state card">
+      <div v-else-if="wrongList.length === 0" class="empty-state card">
         <div class="empty-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--hairline-strong)" stroke-width="1.5">
             <circle cx="12" cy="12" r="10"/>
@@ -74,9 +76,10 @@
       <!-- 错题列表 -->
       <div v-else class="wrong-list">
         <div 
-          v-for="item in displayList" 
-          :key="item.id" 
+          v-for="item in wrongList" 
+          :key="item.wrong_id" 
           :class="['wrong-card', 'card', { mastered: item.is_mastered }]"
+          @contextmenu.prevent="onRightClick(item)"
         >
           <div class="wrong-card-header">
             <span class="type-badge">{{ typeLabel(item.question_type) }}</span>
@@ -99,7 +102,7 @@
                 :key="key"
                 :class="['option-tag', {
                   'correct-option': key === item.answer,
-                  'wrong-option': key === item.wrong_answer && key !== item.answer
+                  'wrong-option': key === item.student_answer && key !== item.answer
                 }]"
               >
                 {{ key }}. {{ opt }}
@@ -110,7 +113,7 @@
             <div class="answer-compare">
               <div class="your-answer">
                 <span class="label">你的答案：</span>
-                <span class="value wrong-value">{{ item.wrong_answer || '未作答' }}</span>
+                <span class="value wrong-value">{{ item.student_answer || '未作答' }}</span>
               </div>
               <div class="correct-answer">
                 <span class="label">正确答案：</span>
@@ -132,12 +135,24 @@
             <button 
               :class="['btn btn-sm', item.is_mastered ? 'btn-outline' : 'btn-primary']"
               @click="toggleMastered(item)"
-              :disabled="togglingId === item.id"
+              :disabled="togglingId === item.wrong_id"
             >
-              {{ togglingId === item.id ? '...' : (item.is_mastered ? '标记未掌握' : '标记已掌握') }}
+              {{ togglingId === item.wrong_id ? '...' : (item.is_mastered ? '标记未掌握' : '标记已掌握') }}
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- 分页 -->
+      <div class="pagination-wrap" v-if="totalPages > 1">
+        <el-pagination
+          background
+          layout="prev, pager, next"
+          :total="totalItems"
+          :page-size="pageSize"
+          v-model:current-page="currentPage"
+          @current-change="handlePageChange"
+        />
       </div>
 
       <!-- 手动添加错题弹窗 -->
@@ -155,9 +170,21 @@
             <label>题目内容 *</label>
             <textarea v-model="addForm.content" rows="3" placeholder="请输入题目内容" required></textarea>
           </div>
-          <div class="form-group">
-            <label>正确答案 *</label>
-            <input v-model="addForm.answer" type="text" placeholder="请输入正确答案" required />
+          <div class="form-row">
+            <div class="form-group form-half">
+              <label>题型 *</label>
+              <select v-model="addForm.question_type">
+                <option value="choice">单选题</option>
+                <option value="multiple_choice">多选题</option>
+                <option value="true_false">判断题</option>
+                <option value="fill_blank">填空题</option>
+                <option value="essay">简答题</option>
+              </select>
+            </div>
+            <div class="form-group form-half">
+              <label>正确答案 *</label>
+              <input v-model="addForm.answer" type="text" placeholder="请输入正确答案" required />
+            </div>
           </div>
           <div class="form-group">
             <label>你的错误答案</label>
@@ -167,6 +194,18 @@
             <label>知识点</label>
             <input v-model="addForm.knowledge_point" type="text" placeholder="请输入知识点" />
           </div>
+          <div class="form-group">
+            <label>难度</label>
+            <select v-model.number="addForm.difficulty">
+              <option :value="1">简单 ★</option>
+              <option :value="3">中等 ★★</option>
+              <option :value="5">困难 ★★★</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>解析</label>
+            <textarea v-model="addForm.analysis" rows="2" placeholder="请输入解析（可选）"></textarea>
+          </div>
           <div class="form-error" v-if="addError">{{ addError }}</div>
           <div class="modal-actions">
             <button class="btn btn-outline" @click="showAddModal = false">取消</button>
@@ -174,6 +213,18 @@
               {{ addLoading ? '添加中...' : '确认添加' }}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+      <div class="delete-modal">
+        <h3>确认删除</h3>
+        <p>确定要删除这道错题吗？</p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="cancelDelete">取消</button>
+          <button class="btn btn-danger" @click="confirmDelete">删除</button>
         </div>
       </div>
     </div>
@@ -190,12 +241,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { getWrongBook, toggleMaster, addWrongQuestion } from '@/api/student'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { getWrongBook, toggleMaster, addWrongQuestion, deleteWrongQuestion } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const wrongList = ref([])
 const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(20)
+const totalItems = ref(0)
+const filteredMastered = ref(0)
+const filteredUnmastered = ref(0)
+const totalPages = ref(0)
 const filterType = ref('')
 const filterMastered = ref('')
 const filterKeyword = ref('')
@@ -205,20 +262,17 @@ const togglingId = ref(null)
 const showAddModal = ref(false)
 const addLoading = ref(false)
 const addError = ref('')
+const showDeleteModal = ref(false)
+const deleteTargetItem = ref(null)
 
 const addForm = ref({
   content: '',
+  question_type: 'choice',
   answer: '',
   wrong_answer: '',
-  knowledge_point: ''
-})
-
-const masteredCount = computed(() => {
-  return wrongList.value.filter(item => item.is_mastered).length
-})
-
-const displayList = computed(() => {
-  return wrongList.value
+  knowledge_point: '',
+  difficulty: 3,
+  analysis: ''
 })
 
 function typeLabel(type) {
@@ -251,8 +305,18 @@ async function loadWrongBook() {
     if (filterMastered.value === 'unmastered') params.mastered = 'false'
     if (filterKeyword.value.trim()) params.keyword = filterKeyword.value.trim()
 
+    params.page = currentPage.value
+    params.page_size = pageSize.value
     const res = await getWrongBook(params)
-    wrongList.value = Array.isArray(res.data) ? res.data : (res.data?.results || [])
+    const data = res.data || {}
+    wrongList.value = []
+    await nextTick()
+    wrongList.value = data.results || []
+    totalItems.value = data.total || 0
+    filteredMastered.value = data.mastered_count ?? 0
+    filteredUnmastered.value = data.unmastered_count ?? 0
+    totalPages.value = Math.ceil(totalItems.value / pageSize.value)
+    await nextTick()
   } catch (error) {
     console.error('加载错题本失败:', error)
     wrongList.value = getMockWrongData()
@@ -265,11 +329,29 @@ function applyFilter() {
   loadWrongBook()
 }
 
+function handleSearch() {
+  currentPage.value = 1
+  loadWrongBook()
+}
+
+function handleReset() {
+  filterType.value = ''
+  filterMastered.value = ''
+  filterKeyword.value = ''
+  currentPage.value = 1
+  loadWrongBook()
+}
+
+function handlePageChange(page) {
+  currentPage.value = page
+  loadWrongBook()
+}
+
 async function toggleMastered(item) {
-  togglingId.value = item.id
+  togglingId.value = item.wrong_id
   try {
     const newStatus = !item.is_mastered
-    await toggleMaster(item.id, newStatus)
+    await toggleMaster(item.wrong_id, newStatus)
     item.is_mastered = newStatus
   } catch (error) {
     console.error('更新错题状态失败:', error)
@@ -283,6 +365,32 @@ function openAIQuestion(item) {
   showAIModal.value = true
 }
 
+async function onRightClick(item) {
+  deleteTargetItem.value = item
+  showDeleteModal.value = true
+}
+
+function cancelDelete() {
+  showDeleteModal.value = false
+  deleteTargetItem.value = null
+}
+
+async function confirmDelete() {
+  const item = deleteTargetItem.value
+  if (!item) return
+
+  try {
+    await deleteWrongQuestion(item.wrong_id)
+    wrongList.value = wrongList.value.filter(w => w.wrong_id !== item.wrong_id)
+  } catch (error) {
+    console.error('删除错题失败:', error)
+    alert('删除失败，请稍后重试')
+  } finally {
+    showDeleteModal.value = false
+    deleteTargetItem.value = null
+  }
+}
+
 async function handleAdd() {
   if (!addForm.value.content.trim() || !addForm.value.answer.trim()) {
     addError.value = '题目内容和正确答案为必填项'
@@ -293,7 +401,7 @@ async function handleAdd() {
   try {
     await addWrongQuestion(addForm.value)
     showAddModal.value = false
-    addForm.value = { content: '', answer: '', wrong_answer: '', knowledge_point: '' }
+    addForm.value = { content: '', question_type: 'choice', answer: '', wrong_answer: '', knowledge_point: '', difficulty: 3, analysis: '' }
     loadWrongBook()
   } catch (error) {
     addError.value = error.response?.data?.error || '添加失败，请稍后重试'
@@ -310,7 +418,7 @@ function getMockWrongData() {
       content: 'Python中列表推导式的基本语法是什么？',
       options: '{"A": "[x for x in iterable]", "B": "for x in iterable: [x]", "C": "list(for x in iterable)", "D": "{x for x in iterable}"}',
       answer: 'A',
-      wrong_answer: 'B',
+      student_answer: 'B',
       analysis: '列表推导式语法为 [expression for item in iterable]',
       knowledge_point: 'Python列表',
       difficulty: 2,
@@ -321,7 +429,7 @@ function getMockWrongData() {
       question_type: 'true_false',
       content: 'Python中的集合(set)是有序的。',
       answer: 'false',
-      wrong_answer: 'true',
+      student_answer: 'true',
       analysis: 'Python中的set是无序集合，不支持索引访问。',
       knowledge_point: 'Python集合',
       difficulty: 1,
@@ -333,7 +441,7 @@ function getMockWrongData() {
       content: '以下哪些是Python的不可变类型？',
       options: '{"A": "int", "B": "list", "C": "tuple", "D": "str"}',
       answer: 'A,C,D',
-      wrong_answer: 'A,C',
+      student_answer: 'A,C',
       analysis: 'int, tuple, str 是不可变类型，list是可变类型。',
       knowledge_point: 'Python数据类型',
       difficulty: 2,
@@ -582,6 +690,48 @@ onMounted(() => {
   box-shadow: 0 4px 16px rgba(217, 119, 87, 0.35);
 }
 
+/* ===== 删除确认弹窗 ===== */
+.delete-modal {
+  width: 350px;
+  padding: 24px 20px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  border: 1px solid var(--hairline, #e3dbd0);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.delete-modal h3 {
+  margin: 0 0 10px;
+  font-size: 1.1em;
+  color: var(--ink, #2a2a2a);
+}
+
+.delete-modal p {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--muted, #6b655c);
+}
+
+.delete-modal .modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn-danger {
+  background: #c64545;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #b33a3a;
+}
+
 /* ===== 弹窗 ===== */
 .modal-overlay {
   position: fixed;
@@ -622,6 +772,29 @@ onMounted(() => {
   font-weight: 500;
 }
 
+.form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--hairline-strong, #ccc2b4);
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink, #2a2a2a);
+  outline: none;
+  box-sizing: border-box;
+  background: var(--card-bg, #ffffff);
+  cursor: pointer;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-half {
+  flex: 1;
+}
+
 .form-group input,
 .form-group textarea {
   width: 100%;
@@ -660,5 +833,11 @@ onMounted(() => {
   .filter-bar { flex-direction: column; gap: 10px; }
   .answer-compare { flex-direction: column; gap: 8px; }
   .float-add-btn { bottom: 70px; right: 16px; }
+}
+
+.pagination-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
 }
 </style>

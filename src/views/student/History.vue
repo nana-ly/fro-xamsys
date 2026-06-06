@@ -68,8 +68,8 @@
               {{ currentReviewIndex + 1 }}. {{ currentReviewQuestion.question_content }}
             </h3>
 
-            <!-- 选择题 -->
-            <div v-if="isChoiceType(currentReviewQuestion.question_type)" class="options-list">
+            <!-- 单选题 -->
+            <div v-if="currentReviewQuestion.question_type === 'choice'" class="options-list">
               <label
                 v-for="(opt, key) in parsedOptions"
                 :key="key"
@@ -88,35 +88,55 @@
               </label>
             </div>
 
+            <!-- 多选题 -->
+            <div v-if="currentReviewQuestion.question_type === 'multiple_choice'" class="options-list">
+              <label
+                v-for="(opt, key) in parsedOptions"
+                :key="key"
+                :class="[
+                  'option-item',
+                  {
+                    'correct-answer': isInMultiAnswer(key, currentReviewQuestion.correct_answer),
+                    'wrong-answer': isInMultiAnswer(key, currentReviewQuestion.student_answer) && !isInMultiAnswer(key, currentReviewQuestion.correct_answer)
+                  }
+                ]"
+              >
+                <span class="option-key">{{ key }}</span>
+                <span class="option-text">{{ opt }}</span>
+                <span v-if="isInMultiAnswer(key, currentReviewQuestion.correct_answer)" class="check-mark">✓ 正确答案</span>
+                <span v-if="isInMultiAnswer(key, currentReviewQuestion.student_answer) && !isInMultiAnswer(key, currentReviewQuestion.correct_answer)" class="x-mark">✗ 你的答案</span>
+              </label>
+            </div>
+
             <!-- 判断题 -->
-            <div v-if="currentReviewQuestion.question_type === 'true_false'" class="options-list">
+            <div v-if="currentReviewQuestion.question_type === 'true_false' || currentReviewQuestion.question_type === 'judge'" class="options-list">
               <label
                 :class="[
                   'option-item',
                   {
-                    'correct-answer': 'true' === currentReviewQuestion.correct_answer,
-                    'wrong-answer': 'true' === currentReviewQuestion.student_answer && 'true' !== currentReviewQuestion.correct_answer
+                    'correct-answer': normalizeTrueFalse(currentReviewQuestion.correct_answer) === 'true',
+                    'wrong-answer': normalizeTrueFalse(currentReviewQuestion.student_answer) === 'true' && normalizeTrueFalse(currentReviewQuestion.correct_answer) !== 'true'
                   }
                 ]"
               >
                 <span class="option-key">✓</span>
                 <span class="option-text">正确</span>
-                <span v-if="'true' === currentReviewQuestion.correct_answer" class="check-mark">✓ 正确答案</span>
-                <span v-if="'true' === currentReviewQuestion.student_answer && 'true' !== currentReviewQuestion.correct_answer" class="x-mark">✗ 你的答案</span>
+                <span v-if="normalizeTrueFalse(currentReviewQuestion.correct_answer) === 'true'" class="check-mark">✓ 正确答案</span>
+                <span v-if="normalizeTrueFalse(currentReviewQuestion.student_answer) === 'true' && normalizeTrueFalse(currentReviewQuestion.correct_answer) !== 'true'" class="x-mark">✗ 你的答案</span>
               </label>
               <label
                 :class="[
                   'option-item',
                   {
-                    'correct-answer': 'false' === currentReviewQuestion.correct_answer,
-                    'wrong-answer': 'false' === currentReviewQuestion.student_answer && 'false' !== currentReviewQuestion.correct_answer
+                    'correct-answer': normalizeTrueFalse(currentReviewQuestion.correct_answer) === 'false',
+                    'wrong-answer': normalizeTrueFalse(currentReviewQuestion.student_answer) === 'false' && normalizeTrueFalse(currentReviewQuestion.correct_answer) !== 'false'
                   }
                 ]"
               >
                 <span class="option-key">✗</span>
                 <span class="option-text">错误</span>
-                <span v-if="'false' === currentReviewQuestion.correct_answer" class="check-mark">✓ 正确答案</span>
-                <span v-if="'false' === currentReviewQuestion.student_answer && 'false' !== currentReviewQuestion.correct_answer" class="x-mark">✗ 你的答案</span>
+                <span v-if="normalizeTrueFalse(currentReviewQuestion.correct_answer) === 'false'" class="check-mark">✓ 正确答案</span>
+                <span v-if="normalizeTrueFalse(currentReviewQuestion.student_answer) === 'false' && normalizeTrueFalse(currentReviewQuestion.correct_answer) !== 'false'" class="x-mark">✗ 你的答案</span>
               </label>
             </div>
 
@@ -154,7 +174,7 @@
       <!-- 记录列表视图 -->
       <div v-else-if="!loading">
         <!-- 空状态 -->
-        <div v-if="filteredRecords.length === 0" class="empty-state card">
+        <div v-if="records.length === 0" class="empty-state card">
           <div class="empty-icon">{{ currentTab === 'exam' ? '📋' : '📝' }}</div>
           <p>暂无{{ currentTab === 'exam' ? '考试' : '练习' }}记录</p>
           <button class="btn btn-primary" @click="$router.push('/student/practice')">
@@ -164,7 +184,7 @@
 
         <!-- 列表 -->
         <div v-else class="record-list">
-          <div v-for="record in filteredRecords" :key="`${record.type}-${record.id}`" class="record-card card" @click="openReview(record)">
+          <div v-for="record in records" :key="`${record.type}-${record.id}`" class="record-card card" @click="openReview(record)">
             <div class="record-header">
               <span class="record-type" :class="record.type">
                 {{ record.record_type }}
@@ -217,11 +237,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getHistoryRecords } from '@/api/student'
+import { getHistoryRecords, getRecordDetail } from '@/api/student'
 
 const currentTab = ref('exam')
 const records = ref([])
-const loading = ref(false)
+const loading = ref(true)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
@@ -233,10 +253,6 @@ const reviewQuestions = ref([])
 const currentReviewIndex = ref(0)
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
-
-const filteredRecords = computed(() => {
-  return records.value.filter(r => r.type === currentTab.value)
-})
 
 const currentReviewQuestion = computed(() => {
   return reviewQuestions.value[currentReviewIndex.value] || null
@@ -255,16 +271,23 @@ const parsedOptions = computed(() => {
 function switchTab(tab) {
   currentTab.value = tab
   currentPage.value = 1
+  // 重置答题回顾状态，回到列表
+  reviewMode.value = false
+  currentRecord.value = null
+  reviewQuestions.value = []
+  currentReviewIndex.value = 0
   loadRecords(1)
 }
 
 async function loadRecords(page = 1) {
   loading.value = true
   currentPage.value = page
+  records.value = []
   try {
     const res = await getHistoryRecords({
       page: page,
-      page_size: pageSize.value
+      page_size: pageSize.value,
+      record_type: currentTab.value
     })
     records.value = res.data.results || []
     total.value = res.data.total || 0
@@ -277,53 +300,26 @@ async function loadRecords(page = 1) {
   }
 }
 
-function openReview(record) {
+async function openReview(record) {
   currentRecord.value = record
   reviewQuestions.value = []
-  
-  if (record.type === 'exam') {
-    // 考试记录 - 需要获取题目详情
-    loadExamQuestions(record.id)
-  } else {
-    // 练习记录 - 直接使用记录数据
-    reviewQuestions.value = [{
-      question_id: record.id,
-      question_content: record.paper_name,
-      question_type: 'choice',
-      student_answer: record.score === 100 ? 'A' : '',
-      correct_answer: record.score === 100 ? 'A' : '',
-      is_correct: record.score === 100,
-      options: {}
-    }]
-  }
-  
   reviewMode.value = true
   currentReviewIndex.value = 0
-}
+  loading.value = true
 
-async function loadExamQuestions(recordId) {
-  // 模拟加载考试题目详情
-  // 实际项目中应该调用后端API获取该考试的题目和答案
-  reviewQuestions.value = [
-    {
-      question_id: 1,
-      question_content: 'Python中列表推导式的基本语法是什么？',
-      question_type: 'choice',
-      student_answer: 'A',
-      correct_answer: 'A',
-      is_correct: true,
-      options: '{"A": "[x for x in iterable]", "B": "for x in iterable: [x]", "C": "list(for x in iterable)", "D": "{x for x in iterable}"}'
-    },
-    {
-      question_id: 2,
-      question_content: '以下哪个是Python的不可变类型？',
-      question_type: 'multiple_choice',
-      student_answer: 'A,C',
-      correct_answer: 'A,C,D',
-      is_correct: false,
-      options: '{"A": "int", "B": "list", "C": "tuple", "D": "str"}'
-    }
-  ]
+  try {
+    const res = await getRecordDetail(record.id)
+    reviewQuestions.value = res.data.questions || []
+    // 更新当前记录信息（可能包含更准确的字段）
+    if (res.data.paper_name) currentRecord.value.paper_name = res.data.paper_name
+    if (res.data.score != null) currentRecord.value.score = res.data.score
+    if (res.data.question_count != null) currentRecord.value.question_count = res.data.question_count
+  } catch (error) {
+    console.error('获取题目详情失败:', error)
+    reviewQuestions.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 function closeReview() {
@@ -364,6 +360,20 @@ function typeLabel(type) {
     essay: '简答题'
   }
   return map[type] || type
+}
+
+// 判断题答案归一化（与 PracticePage.isAnswerCorrect 保持一致）
+function normalizeTrueFalse(value) {
+  const v = String(value || '').trim()
+  if (v === 'A' || v === '正确' || v === 'true' || v === 'True') return 'true'
+  if (v === 'B' || v === '错误' || v === 'false' || v === 'False') return 'false'
+  return v
+}
+
+// 多选题：判断选项key是否在答案中（答案格式如 "A,C,D"）
+function isInMultiAnswer(key, answerStr) {
+  if (!answerStr) return false
+  return String(answerStr).split(',').map(s => s.trim()).includes(key)
 }
 
 onMounted(() => {

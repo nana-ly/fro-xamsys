@@ -15,8 +15,8 @@
           </div>
         </div>
         <div class="practice-header-right">
-          <button class="btn btn-primary" @click="submitPractice">
-            提交练习
+          <button class="btn btn-primary" @click="submitPractice" :disabled="showResult">
+            {{ showResult ? '已提交' : '提交练习' }}
           </button>
         </div>
       </div>
@@ -218,7 +218,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getPracticeQuestions, addWrongQuestion, savePracticeRecord } from '@/api/student'
+import { getPracticeQuestions, addWrongQuestion, submitPracticeAnswers } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -386,26 +386,26 @@ async function confirmSubmit() {
     questions: questions.value
   }))
 
-  // 保存做题记录 + 添加错题
-  const sourceType = route.query.source === 'ai' ? 'ai' : 'main'
+  // 一次性提交所有答题（POST /api/student/practice/）
+  try {
+    console.log('answers:', JSON.stringify(answers.value))
+    console.log('questions ids:', questions.value.map(q => q.id))
+    const answersPayload = questions.value.map(q => ({
+      question_id: q.id,
+      answer: answers.value[q.id] || ''
+    }))
+    console.log('submitPracticeAnswers payload:', JSON.stringify(answersPayload))
+    await submitPracticeAnswers(answersPayload)
+  } catch { /* 静默失败 */ }
+
+  // 添加错题：使用题目自带的 source_type（AI出题实际存入主库时 source_type='main'）
   for (const q of questions.value) {
     const studentAnswer = String(answers.value[q.id] || '')
     const correctAnswer = String(q.answer || '')
     const isCorrect = isAnswerCorrect(studentAnswer, correctAnswer, q.question_type)
-    try {
-      await savePracticeRecord({
-        source_type: sourceType,
-        question_id: q.id,
-        question_content: q.content || '',
-        question_type: q.question_type || '',
-        student_answer: studentAnswer,
-        correct_answer: correctAnswer,
-        is_correct: isCorrect,
-        knowledge_point: q.knowledge_point || ''
-      })
-    } catch { /* 静默失败 */ }
     if (!isCorrect && !addingWrongIds.value.has(q.id)) {
       addingWrongIds.value.add(q.id)
+      const sourceType = q.source_type || (route.query.source === 'ai' ? 'ai' : 'main')
       try { await addWrongQuestion(q.id, sourceType, studentAnswer) } catch { /* 静默 */ }
     }
   }
@@ -465,14 +465,23 @@ async function loadPracticeQuestions() {
     } catch { sessionStorage.removeItem(PRACTICE_RESULT_KEY) }
   }
 
+  console.log('PracticePage 挂载时 localStorage.aiQuestions:', localStorage.getItem('aiQuestions'))
+  console.log('PracticePage 挂载时 localStorage 所有键:', Object.keys(localStorage))
+
   const sourceQuery = route.query.source
 
   if (sourceQuery === 'ai') {
     try {
-      const data = sessionStorage.getItem('aiQuestions')
+      console.log('localStorage aiQuestions:', localStorage.getItem('aiQuestions'))
+      let data = localStorage.getItem('aiQuestions')
+      // localStorage 为空时，从路由 query 参数读取（兼容旧方式）
+      if (!data) {
+        data = route.query.aiQuestions
+        console.log('fallback to route.query.aiQuestions:', data)
+      }
       if (!data) { error.value = '未找到AI题目数据'; loading.value = false; return }
       questions.value = JSON.parse(data)
-      sessionStorage.removeItem('aiQuestions')
+      localStorage.removeItem('aiQuestions')
       currentIndex.value = 0
       practiceInfo.value.name = 'AI 智能出题练习'
     } catch {
@@ -552,7 +561,29 @@ function getMockQuestions() {
   ]
 }
 
+function resetPracticeState() {
+  loading.value = false
+  error.value = ''
+  practiceInfo.value = null
+  questions.value = []
+  answers.value = {}
+  currentIndex.value = 0
+  showSubmitModal.value = false
+  showResultModal.value = false
+  submitting.value = false
+  showResult.value = false
+  score.value = 0
+  correctCount.value = 0
+  wrongCount.value = 0
+  showAIModal.value = false
+  aiQuestion.value = null
+  addingWrongIds.value = new Set()
+  sessionStorage.removeItem(PRACTICE_RESULT_KEY)
+  // 注意：不要在此处移除 aiQuestions，因为它在 loadPracticeQuestions 中读取后再移除
+}
+
 onMounted(() => {
+  resetPracticeState()
   loadPracticeQuestions()
 })
 </script>

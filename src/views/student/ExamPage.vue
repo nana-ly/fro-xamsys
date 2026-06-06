@@ -19,8 +19,8 @@
           <div class="timer" :class="{ 'timer--warning': remainingSeconds <= 300 }">
             {{ formatTime(remainingSeconds) }}
           </div>
-          <button class="btn btn-primary" @click="submitExam">
-            交卷
+          <button class="btn btn-primary" @click="submitExam" :disabled="showResult">
+            {{ showResult ? '已提交' : '交卷' }}
           </button>
         </div>
       </div>
@@ -42,21 +42,19 @@
         <!-- 题目导航（答题卡） -->
         <div class="question-nav card">
           <span class="nav-label">答题卡：</span>
-          <div class="nav-grid">
-            <button
-              v-for="(q, index) in questions"
-              :key="q.id"
-              :class="['nav-dot', { 
-                answered: answers[q.id] !== undefined && answers[q.id] !== '', 
-                current: currentIndex === index,
-                correct: showResult && answers[q.id] === q.answer,
-                wrong: showResult && answers[q.id] !== q.answer
-              }]"
-              @click="currentIndex = index"
-            >
-              {{ index + 1 }}
-            </button>
-          </div>
+          <button
+            v-for="(q, index) in questions"
+            :key="q.id"
+            :class="['nav-dot', { 
+              answered: answers[q.id] !== undefined && answers[q.id] !== '', 
+              current: currentIndex === index,
+              correct: showResult && answers[q.id] === q.answer,
+              wrong: showResult && answers[q.id] !== q.answer
+            }]"
+            @click="currentIndex = index"
+          >
+            {{ index + 1 }}
+          </button>
         </div>
 
         <!-- 当前题目 -->
@@ -642,29 +640,26 @@ onBeforeUnmount(() => {
 
 /* ===== 题目导航（答题卡） ===== */
 .question-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 14px 20px;
 }
 
 .nav-label {
-  display: block;
+  width: 100%;
   font-size: 13px;
   font-weight: 600;
   color: var(--ink, #2c2c2c);
-  margin-bottom: 12px;
-}
-
-.nav-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .nav-dot {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-md, 8px);
   border: 1.5px solid var(--hairline, #e8e0d5);
   background: var(--card-bg, #ffffff);
@@ -697,23 +692,6 @@ onBeforeUnmount(() => {
 
 .nav-dot.correct { background: rgba(93,184,114,0.12); border-color: #5db872; color: #5db872; }
 .nav-dot.wrong { background: rgba(198,69,69,0.1); border-color: #c64545; color: #c64545; }
-
-@media (max-width: 900px) {
-  .nav-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .nav-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-  }
-
-  .nav-dot {
-    font-size: 13px;
-  }
-}
 
 /* ===== 题目卡片 ===== */
 .question-card {
