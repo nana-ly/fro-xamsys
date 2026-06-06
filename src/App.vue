@@ -1,12 +1,18 @@
 <template>
+  <ParticlesBackground />
   <router-view />
 </template>
 
 <script>
+import ParticlesBackground from '@/components/ParticlesBackground.vue'
 
 export default {
   name: 'App',
-
+  components: { ParticlesBackground },
+  mounted() {
+    const theme = localStorage.getItem('theme')
+    document.documentElement.setAttribute('data-theme', theme || 'light')
+  }
 }
 </script>
 
@@ -20,7 +26,7 @@ export default {
   --accent-teal: #86b3a3;
   --accent-yellow: #f5d76e;
 
-  --canvas:rgb(249, 222, 180);
+  --canvas: #f8f4ee;
   --surface: #ffffff;
   --card-bg: #ffffff;
   --footer-bg: #2c2c2c;
@@ -42,6 +48,25 @@ export default {
   --radius-full: 9999px;
 
   --font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+/* ===== 深色模式变量覆盖 ===== */
+:root[data-theme="dark"] {
+  --canvas: #101010;
+  --surface: #181818;
+  --card-bg: #222222;
+  --hairline: #3a3a3a;
+  --hairline-strong: #555555;
+  --ink: #e8e4e0;
+  --muted: #aaa6a0;
+  --muted-soft: #888480;
+  --primary: #e0805f;
+  --primary-active: #d97757;
+  --primary-light: rgba(224,128,95,0.12);
+  --primary-bg: rgba(217,119,87,0.2);
+  --footer-bg: #080808;
+  --shadow: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-hover: 0 12px 32px rgba(0,0,0,0.6);
 }
 
 /* ===== 全局基础重置 ===== */

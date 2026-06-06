@@ -143,7 +143,7 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-  document.title = to.meta.title ? `${to.meta.title} - 知识聚合与智能考试平台` : '知识聚合与智能考试平台'
+  document.title = to.meta.title ? `${to.meta.title} - 知识聚合智学平台` : '知识聚合智学平台'
 
   // 公开路由
   const publicPaths = ['/login', '/register', '/role-select', '/home']

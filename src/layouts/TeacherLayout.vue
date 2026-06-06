@@ -1,5 +1,6 @@
 <template>
   <el-container class="layout-container teacher-layout-global">
+    <ParticlesBackground />
     <el-aside width="220px" class="sidebar">
       <div class="sidebar-brand">
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -65,6 +66,7 @@
           <span class="page-subtitle" v-if="route.meta.subtitle">{{ route.meta.subtitle }}</span>
         </div>
         <div class="header-right">
+          <ThemeToggle />
           <div class="user-dropdown">
             <span class="user-avatar">{{ (userInfo.real_name || userInfo.username || '教')[0] }}</span>
             <span class="user-name">{{ userInfo.real_name || userInfo.username || '教师' }}</span>
@@ -85,6 +87,7 @@
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -222,6 +225,12 @@ const handleLogout = async () => {
   height: 64px;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .header-left {
   display: flex;
   align-items: baseline;
@@ -354,5 +363,126 @@ const handleLogout = async () => {
 }
 .teacher-layout-global .el-message-box {
   border-radius: 12px;
+}
+
+/* ===== Element Plus 深色模式覆盖 ===== */
+html[data-theme="dark"] .teacher-layout-global {
+  /* 主色在暗色下稍亮 */
+  --el-color-primary: #e0805f;
+  --el-color-primary-light-3: #e8a080;
+  --el-color-primary-light-5: #f0c0a8;
+  --el-color-primary-light-7: #f5d5c0;
+  --el-color-primary-light-8: #f8e5d8;
+  --el-color-primary-light-9: #fcf0e8;
+  --el-color-primary-dark-2: #d97757;
+
+  /* 核心背景/文字/边框变量 — 这是表格在暗色模式下不再白色的关键 */
+  --el-bg-color: #181818;
+  --el-bg-color-overlay: #222222;
+  --el-bg-color-page: #101010;
+  --el-text-color-primary: #e8e4e0;
+  --el-text-color-regular: #d0ccc6;
+  --el-text-color-secondary: #aaa6a0;
+  --el-text-color-placeholder: #888480;
+  --el-border-color: #3a3a3a;
+  --el-border-color-light: #2e2e2e;
+  --el-border-color-lighter: #333333;
+  --el-border-color-extra-light: #2a2a2a;
+  --el-fill-color: #2a2a2a;
+  --el-fill-color-light: #222222;
+  --el-fill-color-blank: #181818;
+  --el-fill-color-lighter: #242424;
+  --el-color-white: #1a1a1a;
+  --el-color-black: #e8e4e0;
+  --el-color-info: #888480;
+  --el-color-info-light-3: #aaa6a0;
+  --el-color-info-light-5: #6b6b6b;
+  --el-color-info-light-7: #555555;
+  --el-color-info-light-8: #3a3a3a;
+  --el-color-info-light-9: #2a2a2a;
+  --el-color-info-dark-2: #d0ccc6;
+  --el-mask-color: rgba(0,0,0,0.7);
+  --el-mask-color-extra-light: rgba(0,0,0,0.4);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-card {
+  background: var(--card-bg, #222222);
+  border-color: var(--hairline, #3a3a3a);
+  color: var(--ink, #e8e4e0);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-button--primary {
+  --el-button-bg-color: #e0805f;
+  --el-button-border-color: #e0805f;
+  --el-button-hover-bg-color: #d97757;
+  --el-button-hover-border-color: #d97757;
+  --el-button-active-bg-color: #c46a4a;
+  --el-button-active-border-color: #c46a4a;
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-button--primary.is-plain {
+  --el-button-bg-color: rgba(224,128,95,0.15);
+  --el-button-border-color: #e0805f;
+  --el-button-text-color: #e0805f;
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-table {
+  --el-table-border-color: var(--hairline, #3a3a3a);
+  --el-table-header-bg-color: var(--card-bg, #222222);
+  --el-table-row-hover-bg-color: rgba(255,255,255,0.04);
+  --el-table-current-row-bg-color: rgba(224,128,95,0.08);
+  --el-table-tr-bg-color: var(--card-bg, #222222);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-table th.el-table__cell {
+  background: #1e1e1e;
+  color: var(--muted, #aaa6a0);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-input__wrapper {
+  box-shadow: 0 0 0 1px var(--hairline-strong, #555555) inset;
+  background: var(--card-bg, #222222);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #e0805f inset, 0 0 0 3px rgba(224,128,95,0.2) inset;
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-input__inner {
+  color: var(--ink, #e8e4e0);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-select .el-input__wrapper {
+  background: var(--card-bg, #222222);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-pagination {
+  --el-pagination-button-color: var(--muted, #aaa6a0);
+  --el-pagination-hover-color: #e0805f;
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-dialog {
+  background: var(--card-bg, #222222);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-dialog__header {
+  color: var(--ink, #e8e4e0);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-dialog__title {
+  color: var(--ink, #e8e4e0);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-message-box {
+  background: var(--card-bg, #222222);
+  color: var(--ink, #e8e4e0);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-message-box__title {
+  color: var(--ink, #e8e4e0);
+}
+
+html[data-theme="dark"] .teacher-layout-global .el-message-box__message {
+  color: var(--muted, #aaa6a0);
 }
 </style>

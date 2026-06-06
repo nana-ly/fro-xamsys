@@ -41,6 +41,7 @@
 
       <!-- 右侧：用户信息 -->
       <div class="nav-right">
+        <ThemeToggle />
         <div class="user-avatar clickable" @click="goProfile" :title="userName">
           {{ userName.charAt(0) }}
         </div>
@@ -89,6 +90,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -119,6 +122,7 @@ function logout() {
     localStorage.removeItem(`${prefix}_${k}`)
     sessionStorage.removeItem(`${prefix}_${k}`)
   })
+  ElMessage.success('已退出登录')
   router.push('/login?role=student')
 }
 
@@ -139,13 +143,13 @@ onUnmounted(() => {
 
 <style scoped>
 .student-layout {
-  background: var(--canvas,rgb(219, 176, 133));
+  background: var(--canvas, #f8f4ee);
   min-height: 100vh;
 }
 
 /* ===== 顶部导航 ===== */
 .navbar {
-  background: var(--surface,rgb(230, 171, 116));
+  background: var(--surface, #ffffff);
   border-bottom: 1px solid var(--hairline, #e8e0d5);
   position: sticky;
   top: 0;

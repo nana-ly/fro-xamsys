@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const api = axios.create({
@@ -26,10 +27,21 @@ api.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
-      const path = window.location.pathname
-      if (path !== '/login') {
-        const role = path.startsWith('/teacher') ? 'teacher' : 'student'
-        window.location.href = `/login?role=${role}`
+      const url = error.config?.url || ''
+      const method = (error.config?.method || '').toUpperCase()
+      // POST /progress/ 不跳登录（自动保存/心跳，已有静默处理）
+      const silentUrls = ['/progress/']
+      const isSilent = silentUrls.some(u => url.includes(u))
+      if (method === 'GET') {
+        // GET 401：不跳登录，但给用户轻提示（数据加载失败，刷新可恢复）
+        ElMessage.warning('登录信息已过期，请刷新页面后使用')
+      } else if (!isSilent) {
+        const path = window.location.pathname
+        if (path !== '/login') {
+          const role = path.startsWith('/teacher') ? 'teacher' : 'student'
+          ElMessage.error('请重新登录')
+          window.location.href = `/login?role=${role}`
+        }
       }
     }
     return Promise.reject(error)
@@ -66,11 +78,21 @@ export function submitExam(examId, answers) {
   return api.post(`/student/exams/${examId}/submit/`, { answers })
 }
 
+// 保存答题进度（自动保存 + 服务端超时验证）
+export function saveProgress(examId, answers) {
+  return api.post(`/student/exams/${examId}/progress/`, { answers })
+}
+
 // ===================== 错题本相关 =====================
 
 // 获取错题本列表
 export function getWrongBook(params = {}) {
   return api.get('/student/wrongbook/', { params })
+}
+
+// 获取错题统计（只返回数量，用于首页）
+export function getWrongCount() {
+  return api.get('/student/wrongbook/', { params: { summary: 'true' } })
 }
 
 // 手动添加错题

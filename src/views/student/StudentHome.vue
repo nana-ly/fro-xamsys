@@ -196,7 +196,7 @@
 <script setup>
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
-import { getExamList, getWrongBook, aiGenerateQuestion, getStudyActivity } from '@/api/student'
+import { getExamList, getWrongCount, aiGenerateQuestion, getStudyActivity } from '@/api/student'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
 
 const router = useRouter()
@@ -260,9 +260,9 @@ async function loadExamList() {
 
 async function loadWrongCount() {
   try {
-    const res = await getWrongBook()
-    const data = res.data || []
-    wrongCount.value = data.length
+    const res = await getWrongCount()
+    const data = res.data || {}
+    wrongCount.value = data.total || 0
   } catch (error) {
     console.error('获取错题数量失败:', error)
     wrongCount.value = 0
@@ -367,7 +367,7 @@ onActivated(() => {
 
 /* ===== 欢迎横幅 ===== */
 .welcome-banner {
-  background: #d97757;
+  background: var(--primary, #d97757);
   color: #fff;
   border-radius: var(--radius-lg, 12px);
   padding: 28px 32px;
@@ -495,7 +495,7 @@ onActivated(() => {
 .history-card .section-desc {
   margin: 0;
   font-size: 14px;
-  color: var(--muted,rgb(236, 203, 157));
+  color: var(--muted, #6b6b6b);
 }
 
 /* ===== 待考试卷 ===== */
@@ -575,7 +575,7 @@ onActivated(() => {
   width: 100%;
   max-width: 480px;
   padding: 28px 24px;
-  background: var(--card-bg,rgb(236, 199, 157));
+  background: var(--card-bg, #ffffff);
   border-radius: var(--radius-lg, 12px);
   border: 1px solid var(--hairline, #e3dbd0);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);

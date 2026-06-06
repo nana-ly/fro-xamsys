@@ -228,7 +228,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { getExamDetail, startExam, submitExam as submitExamApi } from '@/api/student'
+import { getExamDetail, startExam, submitExam as submitExamApi, saveProgress as saveProgressApi } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -252,6 +252,7 @@ const aiQuestion = ref(null)
 const examRecordId = ref(null)
 
 let timerInterval = null
+let heartbeatInterval = null
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
 
 const selectedAnswer = computed({
@@ -380,6 +381,8 @@ function saveAnswer(value) {
   if (!currentQuestion.value) return
   answers.value[currentQuestion.value.id] = value
   saveAnswersToStorage()
+  // 自动保存到服务端（保持 Session 活跃 + 防丢失）
+  autoSaveProgress()
 }
 
 function toggleMultiple(key) {
@@ -529,13 +532,54 @@ async function loadExam() {
   startTimer()
 }
 
+let autoSaveTimer = null
+
+// 自动保存答题进度（去抖：每次选答案后延迟 2 秒发送，避免短时间内多次请求）
+async function autoSaveProgress() {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  autoSaveTimer = setTimeout(async () => {
+    try {
+      const payload = {}
+      for (const [qId, ans] of Object.entries(answers.value)) {
+        if (ans !== undefined && ans !== '') payload[qId] = ans
+      }
+      if (Object.keys(payload).length === 0) return
+      await saveProgressApi(examId, payload)
+    } catch { /* 静默失败，不影响答题体验 */ }
+  }, 2000)
+}
+
+// 定时心跳：每 2 分钟发一次请求保持 Session 活跃
+function startHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval)
+  heartbeatInterval = setInterval(async () => {
+    try {
+      const payload = {}
+      for (const [qId, ans] of Object.entries(answers.value)) {
+        if (ans !== undefined && ans !== '') payload[qId] = ans
+      }
+      if (Object.keys(payload).length > 0) {
+        const res = await saveProgressApi(examId, payload)
+        if (res.data?.timed_out) {
+          showResult.value = true
+          showResultModal.value = true
+          clearInterval(timerInterval)
+        }
+      }
+    } catch { /* 静默 */ }
+  }, 120000) // 2 分钟
+}
+
 onMounted(() => {
   loadExam()
+  startHeartbeat()
   document.addEventListener('visibilitychange', handleTabSwitch)
 })
 
 onBeforeUnmount(() => {
   if (timerInterval) clearInterval(timerInterval)
+  if (heartbeatInterval) clearInterval(heartbeatInterval)
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
   document.removeEventListener('visibilitychange', handleTabSwitch)
 })
 </script>

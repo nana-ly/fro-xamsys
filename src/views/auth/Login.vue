@@ -7,6 +7,7 @@
         </svg>
         选择身份
       </router-link>
+      <ThemeToggle />
     </header>
 
     <main class="main-content">
@@ -30,6 +31,7 @@
               type="text"
               placeholder="请输入用户名"
               required
+              autocomplete="off"
             />
           </div>
 
@@ -41,6 +43,7 @@
               type="password"
               placeholder="请输入密码"
               required
+              autocomplete="off"
             />
           </div>
 
@@ -72,6 +75,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { login } from '@/api/student'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -88,8 +92,9 @@ const loginForm = reactive({
 
 onMounted(() => {
   role.value = route.query.role || 'student'
-  const savedUsername = localStorage.getItem('savedUsername')
-  const savedPassword = localStorage.getItem('savedPassword')
+  const prefix = role.value === 'teacher' ? 'teacher' : 'student'
+  const savedUsername = localStorage.getItem(`${prefix}_savedUsername`)
+  const savedPassword = localStorage.getItem(`${prefix}_savedPassword`)
   if (savedUsername && savedPassword) {
     loginForm.username = savedUsername
     loginForm.password = savedPassword
@@ -142,12 +147,13 @@ const handleLogin = async () => {
       sessionStorage.setItem(`${prefix}_token`, token)
       sessionStorage.setItem(`${prefix}_userRole`, role)
 
+      const savePrefix = role === 'teacher' ? 'teacher' : 'student'
       if (loginForm.remember) {
-        localStorage.setItem('savedUsername', loginForm.username)
-        localStorage.setItem('savedPassword', loginForm.password)
+        localStorage.setItem(`${savePrefix}_savedUsername`, loginForm.username)
+        localStorage.setItem(`${savePrefix}_savedPassword`, loginForm.password)
       } else {
-        localStorage.removeItem('savedUsername')
-        localStorage.removeItem('savedPassword')
+        localStorage.removeItem(`${savePrefix}_savedUsername`)
+        localStorage.removeItem(`${savePrefix}_savedPassword`)
       }
 
       const target = user.role === 'teacher' ? '/teacher/question-bank' : '/student/home'
@@ -202,6 +208,9 @@ const handleLogin = async () => {
 
 .top-bar {
   padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .back-link {

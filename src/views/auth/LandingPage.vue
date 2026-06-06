@@ -1,6 +1,6 @@
 <template>
   <div class="landing-page" ref="pageRef">
-    <canvas ref="particleCanvas" class="particle-canvas"></canvas>
+    <ParticlesBackground />
 
     <header class="navbar" :class="{ scrolled: isScrolled }">
       <div class="navbar-inner">
@@ -17,15 +17,7 @@
           <a href="javascript:void(0)" class="nav-link" @click="scrollTo('testimonials')">用户反馈</a>
         </nav>
         <div class="navbar-right">
-          <button class="theme-btn" @click="toggleDark" :title="isDark ? '切换浅色模式' : '切换深色模式'">
-            <svg v-if="!isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-            </svg>
-            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="12" r="5"/>
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-            </svg>
-          </button>
+          <ThemeToggle />
           <router-link to="/role-select" class="nav-btn">登录</router-link>
         </div>
       </div>
@@ -41,7 +33,7 @@
       <div class="hero-inner">
         <div class="hero-content">
           <div class="hero-header">
-            <h1 class="title-cn">知识聚能智学平台</h1>
+            <h1 class="title-cn">知识聚合智学平台</h1>
             <p class="title-en">Knowledge Hub · Smart Exam Platform</p>
           </div>
           <p class="hero-subtitle">AI 智能出题 · 自动阅卷 · 错题本 · 学习分析</p>
@@ -177,6 +169,8 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
+import ParticlesBackground from '@/components/ParticlesBackground.vue'
 
 const isDark = ref(false)
 
@@ -223,94 +217,6 @@ const ctaGlowStyle = computed(() => {
   }
 })
 
-const particleCanvas = ref(null)
-let particles = []
-let pAnimationId = null
-let mouseX = -1000
-let mouseY = -1000
-
-const initParticles = () => {
-  const canvas = particleCanvas.value
-  if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  const resize = () => {
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-  }
-  resize()
-  window.addEventListener('resize', resize)
-
-  const count = Math.min(100, Math.floor((window.innerWidth * window.innerHeight) / 15000))
-  particles = Array.from({ length: count }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    vx: (Math.random() - 0.5) * 0.3,
-    vy: (Math.random() - 0.5) * 0.3,
-    r: Math.random() * 2 + 1.1
-  }))
-
-  const draw = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    for (const p of particles) {
-      const dx = p.x - mouseX
-      const dy = p.y - mouseY
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 120) {
-        const force = (120 - dist) / 120 * 0.5
-        p.vx += (dx / dist) * force
-        p.vy += (dy / dist) * force
-      }
-
-      p.x += p.vx
-      p.y += p.vy
-      p.vx *= 0.98
-      p.vy *= 0.98
-
-      if (p.x < 0) p.x = canvas.width
-      if (p.x > canvas.width) p.x = 0
-      if (p.y < 0) p.y = canvas.height
-      if (p.y > canvas.height) p.y = 0
-
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-      const particleColor = isDark.value ? '255,255,255' : '0,0,0'
-      const particleAlpha = isDark.value ? '0.15' : '0.12'
-      ctx.fillStyle = `rgba(${particleColor},${particleAlpha})`
-      ctx.fill()
-    }
-
-    // 相邻粒子连线
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x
-        const dy = particles[i].y - particles[j].y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-        if (dist < 100) {
-          ctx.beginPath()
-          ctx.moveTo(particles[i].x, particles[i].y)
-          ctx.lineTo(particles[j].x, particles[j].y)
-          const lineColor = isDark.value ? '255,255,255' : '0,0,0'
-          const lineAlpha = isDark.value ? '0.2' : '0.15'
-          ctx.strokeStyle = `rgba(${lineColor},${lineAlpha})`
-          ctx.lineWidth = 0.5
-          ctx.stroke()
-        }
-      }
-    }
-
-    pAnimationId = requestAnimationFrame(draw)
-  }
-
-  draw()
-  return resize
-}
-
-const onMouseMoveGlobal = (e) => {
-  mouseX = e.clientX
-  mouseY = e.clientY
-}
-
 let fadeObserver = null
 
 const setupAnimations = () => {
@@ -335,8 +241,6 @@ onMounted(() => {
   if (theme === 'dark') isDark.value = true
 
   window.addEventListener('scroll', onScroll, { passive: true })
-  window.addEventListener('mousemove', onMouseMoveGlobal)
-  initParticles()
   setTimeout(setupAnimations, 100)
 
   const mo = new MutationObserver(() => setupAnimations())
@@ -347,8 +251,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('scroll', onScroll)
-  window.removeEventListener('mousemove', onMouseMoveGlobal)
-  if (pAnimationId) cancelAnimationFrame(pAnimationId)
   if (fadeObserver) fadeObserver.disconnect()
 })
 
@@ -372,49 +274,22 @@ const details = [
 ]
 </script>
 
-<!-- 全局 CSS 变量 -- un-scoped，确保 :root 在所有页面生效 -->
+<!-- 全局 CSS 变量 -- un-scoped，登陆页专用变量（共享变量在 App.vue） -->
 <style>
-/* 浅色模式：明亮暖白 */
+/* LandingPage 专用浅色变量 */
 :root {
-  --canvas: #f8f4ee;
-  --surface: #ffffff;
-  --card-bg: #ffffff;
-  --hairline: #e3dbd0;
-  --hairline-strong: #ccc2b4;
-  --ink: #2a2a2a;
-  --muted: #6b655c;
-  --muted-soft: #9f988e;
-  --primary: #d97757;
-  --primary-active: #c46a4a;
-  --primary-bg: rgba(217,119,87,0.12);
-  --hero-end: #eee8df;
-  --footer-bg: #2c2c2c;
+  --hero-end: #eeeee5;
   --footer-text: rgba(255,255,255,0.55);
   --footer-hairline: rgba(255,255,255,0.07);
-  --shadow: 0 4px 12px rgba(0,0,0,0.06);
-  --shadow-hover: 0 12px 32px rgba(0,0,0,0.1);
   --nav-bg: rgba(248,244,238,0.95);
   --nav-bg-scrolled: rgba(255,255,255,0.98);
 }
-/* 深色模式：深黑灰，文字高对比 */
+
+/* LandingPage 专用深色变量 */
 :root[data-theme="dark"] {
-  --canvas: #101010;
-  --surface: #181818;
-  --card-bg: #222222;
-  --hairline: #3a3a3a;
-  --hairline-strong: #555555;
-  --ink: #e8e4e0;
-  --muted: #aaa6a0;
-  --muted-soft: #888480;
-  --primary: #e0805f;
-  --primary-active: #d97757;
-  --primary-bg: rgba(217,119,87,0.2);
   --hero-end: #181818;
-  --footer-bg: #080808;
   --footer-text: rgba(255,255,255,0.45);
   --footer-hairline: rgba(255,255,255,0.05);
-  --shadow: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-hover: 0 12px 32px rgba(0,0,0,0.6);
   --nav-bg: rgba(16,16,16,0.95);
   --nav-bg-scrolled: rgba(24,24,24,0.98);
 }
@@ -426,18 +301,15 @@ body { margin: 0; background: var(--canvas); }
   position: relative;
   font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
   color: var(--ink);
-  background: var(--canvas);
   overflow-x: hidden;
   min-height: 100vh;
   transition: background 300ms ease, color 300ms ease;
 }
 
-.particle-canvas {
-  position: fixed;
-  inset: 0;
+.landing-page :deep(.particle-canvas) {
   z-index: 9999;
-  pointer-events: none;
 }
+
 
 .navbar {
   position: fixed;

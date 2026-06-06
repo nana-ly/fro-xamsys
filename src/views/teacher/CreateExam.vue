@@ -301,7 +301,7 @@
 
       <div class="preview-content">
         <h2 style="text-align: center">{{ examForm.title }}</h2>
-        <p style="text-align: center; color: #999">
+        <p style="text-align: center; color: var(--muted-soft, #999)">
           总分：{{ totalScore }}分 | 时长：{{ examForm.duration }}分钟 | 及格分：{{ examForm.passScore }}分
         </p>
         <el-divider />
@@ -434,7 +434,7 @@ const disabledDate = (time) => {
 // 获取班级列表
 const fetchClassList = async () => {
   try {
-    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const userInfo = JSON.parse(localStorage.getItem('teacher_userInfo') || '{}')
     const res = await getClassList()
     const allClasses = res.results || res
     classList.value = allClasses.filter(cls => cls.teacher === userInfo.id)
@@ -703,7 +703,7 @@ onMounted(async () => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--ink, #333);
 }
 
 .stat-item {
@@ -713,7 +713,7 @@ onMounted(async () => {
 }
 
 .stat-item .label {
-  color: #666;
+  color: var(--muted, #666);
 }
 
 .stat-item .value {
@@ -724,7 +724,7 @@ onMounted(async () => {
 .stat-title {
   font-weight: bold;
   margin: 10px 0;
-  color: #333;
+  color: var(--ink, #333);
 }
 
 .preview-content {
@@ -735,7 +735,7 @@ onMounted(async () => {
 .preview-question {
   margin-bottom: 30px;
   padding: 15px;
-  background: #f5f5f5;
+  background: var(--canvas, #f5f5f5);
   border-radius: 5px;
 }
 

@@ -715,7 +715,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--ink, #333);
 }
 
 .header-buttons {

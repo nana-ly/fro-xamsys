@@ -527,7 +527,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--ink, #333);
 }
 
 .filter-card {
@@ -581,14 +581,14 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: bold;
-  color: #333;
+  color: var(--ink, #333);
   line-height: 1;
   margin-bottom: 8px;
 }
 
 .stat-label {
   font-size: 14px;
-  color: #999;
+  color: var(--muted-soft, #999);
 }
 
 /* 图表区域 */
@@ -605,7 +605,7 @@ onMounted(() => {
 .answer-item {
   margin-bottom: 30px;
   padding: 15px;
-  background: #f5f5f5;
+  background: var(--canvas, #f5f5f5);
   border-radius: 5px;
 }
 
@@ -644,7 +644,7 @@ onMounted(() => {
 
 .answer-line .label {
   font-weight: bold;
-  color: #666;
+  color: var(--muted, #666);
   margin-right: 10px;
 }
 

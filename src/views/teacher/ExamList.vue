@@ -194,7 +194,7 @@
     <el-dialog v-model="previewDialogVisible" title="试卷预览" width="70%">
       <div class="preview-content">
         <h2 style="text-align:center">{{ examForm.title }}</h2>
-        <p style="text-align:center;color:#999">总分：{{ totalScore }}分 | 时长：{{ examForm.duration }}分钟</p>
+        <p style="text-align:center;color:var(--muted-soft, #999)">总分：{{ totalScore }}分 | 时长：{{ examForm.duration }}分钟</p>
         <el-divider />
         <div v-for="(q, idx) in selectedQuestions" :key="idx" class="preview-question">
           <div class="question-title">
@@ -309,7 +309,7 @@ const handleDelete = async (row) => {
 // ===== 选题 =====
 async function fetchClassList() {
   try {
-    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const userInfo = JSON.parse(localStorage.getItem('teacher_userInfo') || '{}')
     const res = await getClassList()
     classList.value = ((res.results || res)).filter(cls => cls.teacher === userInfo.id)
   } catch { ElMessage.error('获取班级列表失败') }

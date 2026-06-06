@@ -84,7 +84,7 @@ onMounted(async () => {
     form.created_at = user.created_at || user.date_joined || ''
   } catch {
     // 从 localStorage 获取
-    const info = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const info = JSON.parse(localStorage.getItem('teacher_userInfo') || '{}')
     form.username = info.username || ''
     form.real_name = info.real_name || ''
   }
@@ -98,9 +98,9 @@ async function saveProfile() {
       data: { real_name: form.real_name }
     })
     // 更新 localStorage
-    const info = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const info = JSON.parse(localStorage.getItem('teacher_userInfo') || '{}')
     info.real_name = form.real_name
-    localStorage.setItem('userInfo', JSON.stringify(info))
+    localStorage.setItem('teacher_userInfo', JSON.stringify(info))
     ElMessage.success('保存成功')
   } catch {
     ElMessage.error('保存失败')
@@ -146,6 +146,6 @@ async function changePassword() {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--ink, #333);
 }
 </style>

@@ -22,6 +22,7 @@ const props = defineProps({
 const { proxy } = getCurrentInstance()
 const heatmapChart = ref(null)
 let chartInstance = null
+let themeObserver = null
 
 const totalDays = computed(() => {
   // 默认展示最近91天（约3个月）
@@ -141,9 +142,18 @@ function initChart() {
     })
   })
 
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+  const textColor = isDark ? '#aaa6a0' : '#333'
+  const mutedColor = isDark ? '#777' : '#999'
+  const emptyColor = isDark ? '#2a2a2a' : '#ebedf0'
+  const splitLineColor = isDark ? '#333' : '#e0e0e0'
+
   const option = {
     tooltip: {
       position: 'top',
+      backgroundColor: isDark ? '#222' : '#fff',
+      borderColor: isDark ? '#3a3a3a' : '#e0e0e0',
+      textStyle: { color: isDark ? '#e8e4e0' : '#333' },
       formatter: function(params) {
         const data = params.data
         if (!data || data.length < 3) return ''
@@ -166,11 +176,9 @@ function initChart() {
     xAxis: {
       type: 'category',
       data: weeksData.map((_, i) => {
-        // 取每周第一天的月份作为标签
         const firstDay = weeksData[i][0]
         if (!firstDay) return ''
         const dateStr = firstDay.date
-        // 每个月第一周显示月份
         if (i === 0) return dateStr.substring(5)
         const prevWeek = weeksData[i - 1]
         if (!prevWeek[0]) return ''
@@ -182,10 +190,12 @@ function initChart() {
       axisLabel: {
         fontSize: 9,
         interval: 0,
-        rotate: 45
+        rotate: 45,
+        color: mutedColor
       },
       splitArea: {
-        show: true
+        show: true,
+        areaStyle: { color: ['rgba(0,0,0,0)'] }
       }
     },
     yAxis: {
@@ -193,10 +203,12 @@ function initChart() {
       data: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
       axisLabel: {
         fontSize: 10,
-        margin: 10
+        margin: 10,
+        color: textColor
       },
       splitArea: {
-        show: true
+        show: true,
+        areaStyle: { color: ['rgba(0,0,0,0)'] }
       }
     },
     visualMap: {
@@ -207,14 +219,15 @@ function initChart() {
       left: 'center',
       bottom: 10,
       pieces: [
-        { min: 0, max: 0, label: '0', color: '#ebedf0' },
+        { min: 0, max: 0, label: '0', color: emptyColor },
         { min: 1, max: 20, label: '1-20', color: '#c6e48b' },
         { min: 21, max: 50, label: '21-50', color: '#7bc96f' },
         { min: 51, max: 100, label: '51-100', color: '#239a3b' },
         { min: 101, max: 9999, label: '101+', color: '#196127' }
       ],
       textStyle: {
-        fontSize: 10
+        fontSize: 10,
+        color: mutedColor
       }
     },
     series: [{
@@ -256,10 +269,22 @@ onMounted(() => {
     initChart()
   })
   window.addEventListener('resize', handleResize)
+  // 监听主题切换，重新渲染热力图
+  themeObserver = new MutationObserver(() => {
+    nextTick(() => initChart())
+  })
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  if (themeObserver) {
+    themeObserver.disconnect()
+    themeObserver = null
+  }
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
@@ -271,9 +296,9 @@ onBeforeUnmount(() => {
 .study-heatmap {
   padding: 20px;
   margin-bottom: 20px;
-  background: white;
+  background: var(--card-bg, #ffffff);
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow, 0 2px 12px rgba(0, 0, 0, 0.06));
 }
 
 .heatmap-header {
@@ -283,13 +308,13 @@ onBeforeUnmount(() => {
 .heatmap-header h3 {
   margin: 0 0 4px 0;
   font-size: 1.1em;
-  color: #333;
+  color: var(--ink, #333);
 }
 
 .heatmap-subtitle {
   margin: 0;
   font-size: 0.85em;
-  color: #999;
+  color: var(--muted, #999);
 }
 
 .heatmap-chart {
@@ -300,7 +325,7 @@ onBeforeUnmount(() => {
 .heatmap-empty {
   text-align: center;
   padding: 30px 0;
-  color: #999;
+  color: var(--muted, #999);
   font-size: 0.95em;
 }
 
@@ -308,11 +333,11 @@ onBeforeUnmount(() => {
   .study-heatmap {
     padding: 12px;
   }
-  
+
   .heatmap-chart {
     height: 180px;
   }
-  
+
   .heatmap-header h3 {
     font-size: 1em;
   }

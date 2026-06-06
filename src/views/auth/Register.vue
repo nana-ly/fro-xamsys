@@ -7,6 +7,7 @@
         </svg>
         返回登录
       </router-link>
+      <ThemeToggle />
     </header>
 
     <main class="main-content">
@@ -78,6 +79,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { register } from '@/api/student'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -164,6 +166,9 @@ const handleRegister = async () => {
 
 .top-bar {
   padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .back-link {

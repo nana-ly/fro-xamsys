@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--card-bg, #ffffff);
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   overflow: hidden;
@@ -305,7 +305,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--hairline, #f0f0f0);
   background: linear-gradient(135deg, #409eff 0%, #337ecc 100%);
   color: white;
 }
@@ -436,8 +436,8 @@ onBeforeUnmount(() => {
 }
 
 .chat-message--ai .chat-bubble {
-  background: #f5f5f5;
-  color: #333;
+  background: var(--canvas, #f5f5f5);
+  color: var(--ink, #333);
   border-bottom-left-radius: 4px;
 }
 
@@ -502,14 +502,14 @@ onBeforeUnmount(() => {
 
 .quick-label {
   font-size: 0.8em;
-  color: #999;
+  color: var(--muted, #999);
 }
 
 .quick-btn {
   padding: 4px 10px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--hairline, #ddd);
   border-radius: 16px;
-  background: white;
+  background: var(--card-bg, #ffffff);
   color: #409eff;
   font-size: 0.8em;
   cursor: pointer;
@@ -531,11 +531,13 @@ onBeforeUnmount(() => {
 .chat-input {
   flex: 1;
   padding: 10px 14px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--hairline-strong, #e0e0e0);
   border-radius: 24px;
   outline: none;
   font-size: 0.9em;
   transition: border-color 0.2s;
+  background: var(--card-bg, #ffffff);
+  color: var(--ink, #333);
 }
 
 .chat-input:focus {
@@ -543,7 +545,7 @@ onBeforeUnmount(() => {
 }
 
 .chat-input:disabled {
-  background: #f5f5f5;
+  background: var(--hairline, #f5f5f5);
 }
 
 .send-btn {

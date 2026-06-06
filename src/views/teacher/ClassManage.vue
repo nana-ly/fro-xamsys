@@ -510,7 +510,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #333;
+  color: var(--ink, #333);
 }
 
 .class-card {
@@ -531,7 +531,7 @@ onMounted(() => {
 .class-name {
   font-size: 18px;
   font-weight: bold;
-  color: #333;
+  color: var(--ink, #333);
 }
 
 .more-icon {
@@ -547,7 +547,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   margin-bottom: 10px;
-  color: #666;
+  color: var(--muted, #666);
 }
 
 .info-item .el-icon {
