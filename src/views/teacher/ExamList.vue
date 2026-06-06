@@ -141,13 +141,13 @@
     <el-dialog v-model="selectDialogVisible" title="从题库选题" width="70%">
       <el-form :inline="true">
         <el-form-item label="题型">
-          <el-select v-model="filterForm.type" placeholder="全部" clearable>
+          <el-select v-model="filterForm.type" placeholder="全部" clearable style="width: 130px">
             <el-option label="单选题" value="single" /><el-option label="多选题" value="multiple" />
             <el-option label="判断题" value="judge" /><el-option label="填空题" value="blank" />
           </el-select>
         </el-form-item>
         <el-form-item label="难度">
-          <el-select v-model="filterForm.difficulty" placeholder="全部" clearable>
+          <el-select v-model="filterForm.difficulty" placeholder="全部" clearable style="width: 130px">
             <el-option label="简单" value="easy" /><el-option label="中等" value="medium" /><el-option label="困难" value="hard" />
           </el-select>
         </el-form-item>
@@ -309,9 +309,13 @@ const handleDelete = async (row) => {
 // ===== 选题 =====
 async function fetchClassList() {
   try {
-    const userInfo = JSON.parse(localStorage.getItem('teacher_userInfo') || '{}')
+    const userInfo = JSON.parse(localStorage.getItem('teacher_userInfo') || localStorage.getItem('userInfo') || '{}')
     const res = await getClassList()
-    classList.value = ((res.results || res)).filter(cls => cls.teacher === userInfo.id)
+    if (userInfo.id) {
+      classList.value = ((res.results || res)).filter(cls => String(cls.teacher) === String(userInfo.id))
+    } else {
+      classList.value = (res.results || res)
+    }
   } catch { ElMessage.error('获取班级列表失败') }
 }
 async function fetchBankQuestions() {

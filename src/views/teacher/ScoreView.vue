@@ -11,6 +11,7 @@
           <el-select
               v-model="filterForm.classId"
               placeholder="全部班级"
+              style="width: 160px"
               @change="handleClassChange">
             <el-option label="全部班级" value="" />
             <el-option
@@ -25,6 +26,7 @@
           <el-select
               v-model="filterForm.examId"
               placeholder="全部试卷"
+              style="width: 200px"
               @change="fetchScoreData">
             <el-option label="全部试卷" :value="null" />
             <el-option
@@ -234,6 +236,9 @@
           <el-descriptions-item label="试卷名称">
             {{ scoreDetail.exam_title }}
           </el-descriptions-item>
+          <el-descriptions-item label="班级">
+            {{ scoreDetail.paper?.target_class_name || scoreDetail.class_name || '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="得分">
             <el-tag :type="getScoreType(scoreDetail.score, scoreDetail.pass_score)" size="large">
               {{ scoreDetail.score }} / {{ scoreDetail.total_score }}
@@ -361,8 +366,20 @@ const chartData = reactive({
 // 获取班级列表
 const fetchClassList = async () => {
   try {
+    const userInfo = JSON.parse(
+      localStorage.getItem('teacher_userInfo') ||
+      localStorage.getItem('userInfo') ||
+      '{}'
+    )
     const res = await getClassList()
-    classList.value = res.results || res
+    let classes = res.results || res
+
+    // 只显示当前教师创建的班级（宽松比较）
+    if (userInfo.id) {
+      classes = classes.filter(cls => String(cls.teacher) === String(userInfo.id))
+    }
+
+    classList.value = classes
   } catch (error) {
     ElMessage.error('获取班级列表失败')
   }

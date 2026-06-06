@@ -36,6 +36,20 @@
           </template>
 
           <div class="class-info">
+            <div class="info-item class-code-item">
+              <el-icon><Key /></el-icon>
+              <span class="class-code-label">班级码：</span>
+              <code class="class-code-value">{{ classItem.class_code || '未生成' }}</code>
+              <el-button
+                v-if="classItem.class_code"
+                type="primary"
+                link
+                size="small"
+                class="copy-code-btn"
+                @click.stop="copyClassCode(classItem.class_code)">
+                <el-icon><CopyDocument /></el-icon>
+              </el-button>
+            </div>
             <div class="info-item">
               <el-icon><User /></el-icon>
               <span>学生数：{{ classItem.student_count }}</span>
@@ -115,8 +129,9 @@
 
       <el-table :data="studentList" v-loading="studentLoading">
         <el-table-column type="index" label="序号" width="60" />
-        <el-table-column prop="username" label="学号" />
+        <el-table-column prop="username" label="用户名" />
         <el-table-column prop="real_name" label="姓名" />
+        <el-table-column prop="phone" label="手机号" />
         <el-table-column prop="email" label="邮箱" />
         <el-table-column prop="join_time" label="加入时间">
           <template #default="scope">
@@ -152,10 +167,10 @@
 
         <!-- 搜索添加 -->
         <template v-if="addStudentType === 'search'">
-          <el-form-item label="学号/姓名">
+          <el-form-item label="用户名/姓名">
             <el-input
                 v-model="studentSearchKeyword"
-                placeholder="输入学号或姓名搜索"
+                placeholder="输入用户名或姓名搜索"
                 @keyup.enter="searchStudents">
               <template #append>
                 <el-button icon="Search" @click="searchStudents" />
@@ -168,8 +183,9 @@
               @selection-change="handleStudentSelection"
               max-height="300">
             <el-table-column type="selection" width="55" />
-            <el-table-column prop="username" label="学号" />
+            <el-table-column prop="username" label="用户名" />
             <el-table-column prop="real_name" label="姓名" />
+            <el-table-column prop="phone" label="手机号" />
             <el-table-column prop="email" label="邮箱" />
           </el-table>
         </template>
@@ -181,7 +197,7 @@
                 v-model="batchStudentIds"
                 type="textarea"
                 :rows="8"
-                placeholder="每行一个学号，例如：&#10;2021001&#10;2021002&#10;2021003" />
+                placeholder="每行一个学生ID，例如：&#10;3&#10;5&#10;8" />
           </el-form-item>
         </template>
       </el-form>
@@ -202,7 +218,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MoreFilled, User, Document, Calendar } from '@element-plus/icons-vue'
+import { MoreFilled, User, Document, Calendar, Key, CopyDocument } from '@element-plus/icons-vue'
 import {
   getClassList,
   createClass,
@@ -251,8 +267,18 @@ const classRules = {
 // 获取班级列表
 const fetchClassList = async () => {
   try {
+    const userInfo = JSON.parse(
+      localStorage.getItem('teacher_userInfo') ||
+      localStorage.getItem('userInfo') ||
+      '{}'
+    )
     const res = await getClassList()
-    const classes = res.results || res
+    let classes = res.results || res
+
+    // 只显示当前教师创建的班级（宽松比较：后端可能返回数字或字符串）
+    if (userInfo.id) {
+      classes = classes.filter(cls => String(cls.teacher) === String(userInfo.id))
+    }
 
     // 批量查询每个班级的学生数和考试数
     const enriched = await Promise.all(
@@ -342,8 +368,13 @@ const handleClassSubmit = async () => {
       await updateClass(editingClassId.value, classForm)
       ElMessage.success('更新成功')
     } else {
-      await createClass(classForm)
-      ElMessage.success('创建成功')
+      const res = await createClass(classForm)
+      const code = res.class_code || '未生成'
+      ElMessage.success({
+        message: `班级「${classForm.name}」创建成功！班级码：${code}`,
+        duration: 8000,
+        showClose: true
+      })
     }
 
     classDialogVisible.value = false
@@ -483,6 +514,15 @@ const removeStudent = async (studentId) => {
   }
 }
 
+// 复制班级码
+const copyClassCode = (code) => {
+  navigator.clipboard.writeText(code).then(() => {
+    ElMessage.success(`班级码 ${code} 已复制到剪贴板`)
+  }).catch(() => {
+    ElMessage.info(`班级码：${code}`)
+  })
+}
+
 // 格式化日期
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -553,6 +593,33 @@ onMounted(() => {
 .info-item .el-icon {
   margin-right: 8px;
   color: #409eff;
+}
+
+.class-code-item {
+  background: #f0f5ff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 12px;
+}
+
+.class-code-label {
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.class-code-value {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  color: #1d6def;
+  background: #e6f0ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.copy-code-btn {
+  margin-left: 4px;
 }
 
 .card-actions {

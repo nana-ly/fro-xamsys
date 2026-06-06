@@ -16,14 +16,14 @@
       <el-form :inline="true">
         <el-form-item label="题目内容">
           <el-input
-              v-model="searchForm.keyword"
+              v-model="searchKeyword"
               placeholder="搜索题目"
               clearable>
           </el-input>
         </el-form-item>
 
         <el-form-item label="题型">
-          <el-select v-model="searchForm.type" placeholder="全部题型" clearable>
+          <el-select v-model="searchType" placeholder="全部题型" clearable style="width: 130px">
             <el-option label="单选题" value="single" />
             <el-option label="多选题" value="multiple" />
             <el-option label="判断题" value="judge" />
@@ -33,7 +33,7 @@
         </el-form-item>
 
         <el-form-item label="难度">
-          <el-select v-model="searchForm.difficulty" placeholder="全部难度" clearable>
+          <el-select v-model="searchDifficulty" placeholder="全部难度" clearable style="width: 130px">
             <el-option label="简单" value="easy" />
             <el-option label="中等" value="medium" />
             <el-option label="困难" value="hard" />
@@ -318,12 +318,10 @@ const dialogTitle = ref('新增题目')
 const questionFormRef = ref(null)
 const editingId = ref(null)
 
-// 搜索表单
-const searchForm = reactive({
-  keyword: '',
-  type: '',
-  difficulty: ''
-})
+// 搜索表单 — 使用 ref 确保 el-select 双向绑定正常
+const searchKeyword = ref('')
+const searchType = ref('')
+const searchDifficulty = ref('')
 
 // 分页数据
 const pagination = reactive({
@@ -383,10 +381,10 @@ const fetchQuestionList = async () => {
       page: pagination.current,
       page_size: pagination.size,
       ordering: '-created_at',
-      keyword: searchForm.keyword || undefined,
+      keyword: searchKeyword.value || undefined,
     }
-    if (searchForm.type) params.question_type = TYPE_MAP[searchForm.type] || searchForm.type
-    if (searchForm.difficulty) params.difficulty = DIFFICULTY_MAP[searchForm.difficulty]
+    if (searchType.value) params.question_type = TYPE_MAP[searchType.value] || searchType.value
+    if (searchDifficulty.value) params.difficulty = DIFFICULTY_MAP[searchDifficulty.value]
 
     const res = await getQuestionList(params)
 
@@ -413,9 +411,9 @@ const handleSearch = () => {
 
 // 重置
 const handleReset = () => {
-  searchForm.keyword = ''
-  searchForm.type = ''
-  searchForm.difficulty = ''
+  searchKeyword.value = ''
+  searchType.value = ''
+  searchDifficulty.value = ''
   pagination.current = 1
   fetchQuestionList()
 }

@@ -56,6 +56,18 @@ function getCookie(name) {
   return null
 }
 
+// ===================== 班级相关 =====================
+
+// 通过班级码加入班级
+export function joinClass(classCode) {
+  return api.post('/users/student-classes/join/', { class_code: classCode })
+}
+
+// 获取已加入的班级列表
+export function getMyClasses() {
+  return api.get('/users/student-classes/')
+}
+
 // ===================== 考试相关 =====================
 
 // 获取学生可参加的试卷列表
@@ -96,8 +108,16 @@ export function getWrongCount() {
 }
 
 // 手动添加错题
-export function addWrongQuestion(questionId) {
-  return api.post('/student/wrongbook/add/', { question_id: questionId })
+// 手动添加错题（兼容两种调用方式：对象参数 / 三个位置参数）
+export function addWrongQuestion(questionIdOrData, sourceType = 'main', wrongAnswer = '') {
+  if (typeof questionIdOrData === 'object' && questionIdOrData !== null) {
+    return api.post('/student/wrongbook/add/', questionIdOrData)
+  }
+  return api.post('/student/wrongbook/add/', {
+    question_id: questionIdOrData,
+    source_type: sourceType,
+    wrong_answer: wrongAnswer
+  })
 }
 
 // 标记/取消标记已掌握
@@ -108,20 +128,23 @@ export function toggleMaster(wrongId, isMastered) {
 // ===================== AI相关 =====================
 
 // AI出题
-export function aiGenerateQuestion(knowledgePoint, questionType = 'choice', difficulty = 'medium', count = 5) {
+export function aiGenerateQuestion(knowledgePoint, questionType = 'choice', difficulty = 'medium', count = 5, targetLibrary = 'main') {
   return api.post('/student/ai/generate_question/', {
     knowledge_point: knowledgePoint,
     question_type: questionType,
     difficulty: difficulty,
-    count: count
+    count: count,
+    target_library: targetLibrary
   }, { timeout: 60000 })
 }
 
 // AI问答（对错题提问）
-export function aiAskQuestion(questionId, studentQuestion) {
+// AI问答（兼容3参数旧调用）
+export function aiAskQuestion(questionId, studentQuestion, sourceType = 'main') {
   return api.post('/student/ai/ask/', {
     question_id: questionId,
-    student_question: studentQuestion
+    student_question: studentQuestion,
+    source_type: sourceType
   })
 }
 
@@ -145,6 +168,21 @@ export function logout() {
 // 获取当前用户信息
 export function getCurrentUser() {
   return api.get('/users/auth/me/')
+}
+
+// 更新学生个人信息（真实姓名、手机号、邮箱）
+export function updateProfile(data) {
+  return api.put('/student/profile/', data)
+}
+
+// 修改密码（需要旧密码）
+export function changePassword(data) {
+  return api.post('/student/change_password/', data)
+}
+
+// 忘记密码重置
+export function forgotPassword(data) {
+  return api.post('/student/forgot_password/', data)
 }
 
 // ===================== 练习/题库相关 =====================

@@ -26,6 +26,15 @@
             </svg>
             错题本
           </button>
+          <button class="btn btn-welcome" @click="showJoinDialog = true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+            加入班级
+          </button>
           <button class="btn btn-welcome" @click="$router.push('/student/profile')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -188,6 +197,30 @@
             </div>
           </div>
         </div>
+
+        <!-- 加入班级弹窗 -->
+        <div v-if="showJoinDialog" class="modal-overlay" @click.self="closeJoinDialog">
+          <div class="modal-dialog">
+            <h3>加入班级</h3>
+            <p class="join-desc">请输入教师提供的班级码</p>
+            <div class="form-group">
+              <input
+                v-model="joinClassCode"
+                type="text"
+                placeholder="例如：C12022123456"
+                class="form-input join-code-input"
+                @keyup.enter="handleJoinClass"
+              />
+            </div>
+            <div class="form-error" v-if="joinError">{{ joinError }}</div>
+            <div class="modal-actions">
+              <button class="btn btn-secondary" @click="closeJoinDialog">取消</button>
+              <button class="btn btn-primary" @click="handleJoinClass" :disabled="joinLoading">
+                {{ joinLoading ? '加入中...' : '加入' }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -196,7 +229,7 @@
 <script setup>
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
-import { getExamList, getWrongCount, aiGenerateQuestion, getStudyActivity } from '@/api/student'
+import { getExamList, getWrongCount, aiGenerateQuestion, getStudyActivity, joinClass } from '@/api/student'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
 
 const router = useRouter()
@@ -227,6 +260,12 @@ const practiceParams = reactive({
   questionType: '',
   count: 10
 })
+
+// 加入班级
+const showJoinDialog = ref(false)
+const joinLoading = ref(false)
+const joinClassCode = ref('')
+const joinError = ref('')
 
 // 获取学习活跃度数据
 async function fetchStudyData() {
@@ -306,6 +345,55 @@ function goAIPractice() {
     router.push('/student/practice?source=ai')
   }
   showAIQuestion.value = false
+}
+
+async function handleJoinClass() {
+  const code = joinClassCode.value.trim()
+  if (!code) {
+    joinError.value = '请输入班级码'
+    return
+  }
+  joinError.value = ''
+  joinLoading.value = true
+  try {
+    const res = await joinClass(code)
+    const data = res.data || res
+    // 后端返回 { message, data: { class_name, ... } }
+    const className = data.data?.class_name || data.class_name || '未知班级'
+    alert(`成功加入班级「${className}」！`)
+    closeJoinDialog()
+    loadExamList()
+  } catch (error) {
+    const detail = error.response?.data
+    if (detail?.non_field_errors) {
+      const msg = Array.isArray(detail.non_field_errors) ? detail.non_field_errors[0] : detail.non_field_errors
+      if (msg.includes('已经加入过该班级')) {
+        // 已在班级中，不是错误
+        alert('您已在该班级中，无需重复加入')
+        closeJoinDialog()
+        loadExamList()
+        joinLoading.value = false
+        return
+      }
+      joinError.value = msg
+    } else if (detail?.class_code) {
+      joinError.value = detail.class_code[0] || '班级码无效'
+    } else if (detail?.detail) {
+      joinError.value = detail.detail
+    } else if (detail?.error) {
+      joinError.value = detail.error
+    } else {
+      joinError.value = '加入失败，请检查班级码是否正确'
+    }
+  } finally {
+    joinLoading.value = false
+  }
+}
+
+function closeJoinDialog() {
+  showJoinDialog.value = false
+  joinClassCode.value = ''
+  joinError.value = ''
 }
 
 async function generateAIQuestion() {
@@ -624,6 +712,19 @@ onActivated(() => {
 
 .ai-practice-btn {
   width: 100%;
+}
+
+.join-desc {
+  margin: -12px 0 16px 0;
+  color: var(--muted, #6b655c);
+  font-size: 14px;
+}
+
+.join-code-input {
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  text-align: center;
+  letter-spacing: 2px;
 }
 
 /* ===== 热力图纵向加长 ===== */

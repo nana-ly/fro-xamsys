@@ -2,13 +2,39 @@
   <div class="profile-page">
     <div class="container">
 
+      <!-- 操作按钮 -->
+      <div class="actions-bar">
+        <button class="btn btn-outline" @click="showEditDialog = true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          编辑资料
+        </button>
+        <button class="btn btn-outline" @click="showPasswordDialog = true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          修改密码
+        </button>
+      </div>
 
       <!-- 个人信息卡片 -->
       <div class="profile-card card">
         <div class="profile-avatar">
           <div class="avatar-circle">{{ userName.charAt(0) }}</div>
-          <h2>{{ userName }}</h2>
+          <h2>{{ displayName }}</h2>
           <p class="user-role">学生</p>
+          <div class="contact-info">
+            <span v-if="profile.phone" class="contact-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              {{ profile.phone }}
+            </span>
+            <span v-if="profile.email" class="contact-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              {{ profile.email }}
+            </span>
+          </div>
         </div>
         <div class="profile-stats">
           <div class="stat-item">
@@ -97,18 +123,100 @@
       <StudyHeatmap :studyData="studyData" />
 
     </div>
+
+    <!-- ========== 编辑资料弹窗 ========== -->
+    <Teleport to="body">
+      <div v-if="showEditDialog" class="dialog-overlay" @click.self="showEditDialog = false">
+        <div class="dialog-card">
+          <div class="dialog-header">
+            <h3>编辑个人信息</h3>
+            <button class="dialog-close" @click="showEditDialog = false">&times;</button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label>用户名</label>
+              <input type="text" :value="profile.username" disabled class="input-disabled" />
+            </div>
+            <div class="form-group">
+              <label>真实姓名 <span class="required">*</span></label>
+              <input v-model="editForm.real_name" type="text" placeholder="请输入真实姓名" />
+            </div>
+            <div class="form-group">
+              <label>手机号</label>
+              <input v-model="editForm.phone" type="text" placeholder="请输入手机号（如 13800138000）" />
+            </div>
+            <div class="form-group">
+              <label>邮箱</label>
+              <input v-model="editForm.email" type="email" placeholder="请输入邮箱" />
+            </div>
+            <div v-if="editError" class="form-error">{{ editError }}</div>
+            <div v-if="editSuccess" class="form-success">{{ editSuccess }}</div>
+          </div>
+          <div class="dialog-footer">
+            <button class="btn btn-cancel" @click="showEditDialog = false">取消</button>
+            <button class="btn btn-primary" @click="handleSaveProfile" :disabled="editLoading">
+              {{ editLoading ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ========== 修改密码弹窗 ========== -->
+    <Teleport to="body">
+      <div v-if="showPasswordDialog" class="dialog-overlay" @click.self="showPasswordDialog = false">
+        <div class="dialog-card">
+          <div class="dialog-header">
+            <h3>修改密码</h3>
+            <button class="dialog-close" @click="showPasswordDialog = false">&times;</button>
+          </div>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label>旧密码 <span class="required">*</span></label>
+              <input v-model="passwordForm.old_password" type="password" placeholder="请输入旧密码" />
+            </div>
+            <div class="form-group">
+              <label>新密码 <span class="required">*</span></label>
+              <input v-model="passwordForm.new_password" type="password" placeholder="至少6位新密码" />
+            </div>
+            <div class="form-group">
+              <label>确认新密码 <span class="required">*</span></label>
+              <input v-model="passwordForm.confirm_password" type="password" placeholder="再次输入新密码" />
+            </div>
+            <div v-if="passwordError" class="form-error">{{ passwordError }}</div>
+            <div v-if="passwordSuccess" class="form-success">{{ passwordSuccess }}</div>
+          </div>
+          <div class="dialog-footer">
+            <button class="btn btn-cancel" @click="showPasswordDialog = false">取消</button>
+            <button class="btn btn-primary" @click="handleChangePassword" :disabled="passwordLoading">
+              {{ passwordLoading ? '提交中...' : '确认修改' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
+import { updateProfile, changePassword } from '@/api/student'
 import request from '@/utils/request'
 
 const router = useRouter()
-const userName = ref(localStorage.getItem('student_userName') || '同学')
+const userName = ref(localStorage.getItem('student_userName') || localStorage.getItem('userName') || '同学')
 const loading = ref(true)
+
+const profile = ref({
+  id: null,
+  username: '',
+  real_name: '',
+  phone: '',
+  email: ''
+})
 
 const stats = ref({
   totalExams: 0,
@@ -122,6 +230,32 @@ const stats = ref({
 })
 
 const studyData = ref([])
+
+const displayName = computed(() => profile.value.real_name || profile.value.username || '同学')
+
+// ---- 编辑资料 ----
+const showEditDialog = ref(false)
+const editLoading = ref(false)
+const editError = ref('')
+const editSuccess = ref('')
+
+const editForm = ref({
+  real_name: '',
+  phone: '',
+  email: ''
+})
+
+// ---- 修改密码 ----
+const showPasswordDialog = ref(false)
+const passwordLoading = ref(false)
+const passwordError = ref('')
+const passwordSuccess = ref('')
+
+const passwordForm = ref({
+  old_password: '',
+  new_password: '',
+  confirm_password: ''
+})
 
 const progressExam = computed(() => {
   if (stats.value.totalExams === 0) return 0
@@ -139,6 +273,13 @@ async function fetchProfileData() {
       url: '/student/profile/',
       method: 'get'
     })
+    profile.value = {
+      id: res.id,
+      username: res.username || '',
+      real_name: res.real_name || '',
+      phone: res.phone || '',
+      email: res.email || ''
+    }
     stats.value = {
       totalExams: res.total_exams || 0,
       avgScore: res.avg_score || 0,
@@ -157,6 +298,96 @@ async function fetchProfileData() {
   }
 }
 
+function openEditDialog() {
+  editForm.value = {
+    real_name: profile.value.real_name || '',
+    phone: profile.value.phone || '',
+    email: profile.value.email || ''
+  }
+  editError.value = ''
+  editSuccess.value = ''
+  showEditDialog.value = true
+}
+
+async function handleSaveProfile() {
+  editError.value = ''
+  editSuccess.value = ''
+  editLoading.value = true
+
+  try {
+    const res = await updateProfile({
+      real_name: editForm.value.real_name,
+      phone: editForm.value.phone,
+      email: editForm.value.email
+    })
+    const data = res.data || res
+    profile.value.real_name = data.real_name || editForm.value.real_name
+    profile.value.phone = data.phone || editForm.value.phone
+    profile.value.email = data.email || editForm.value.email
+    localStorage.setItem('student_userName', profile.value.real_name || profile.value.username)
+    localStorage.setItem('userName', profile.value.real_name || profile.value.username)
+    editSuccess.value = '保存成功！'
+    setTimeout(() => {
+      showEditDialog.value = false
+      editSuccess.value = ''
+    }, 1500)
+  } catch (error) {
+    const data = error.response?.data
+    if (data) {
+      editError.value = typeof data === 'string' ? data : (data.error || '保存失败')
+    } else {
+      editError.value = '网络错误，请稍后重试'
+    }
+  } finally {
+    editLoading.value = false
+  }
+}
+
+async function handleChangePassword() {
+  passwordError.value = ''
+  passwordSuccess.value = ''
+  passwordLoading.value = true
+
+  try {
+    await changePassword({
+      old_password: passwordForm.value.old_password,
+      new_password: passwordForm.value.new_password,
+      confirm_password: passwordForm.value.confirm_password
+    })
+    passwordSuccess.value = '密码修改成功，即将跳转到登录页...'
+    passwordForm.value = { old_password: '', new_password: '', confirm_password: '' }
+    setTimeout(() => {
+      showPasswordDialog.value = false
+      passwordSuccess.value = ''
+      localStorage.clear()
+      sessionStorage.clear()
+      router.push('/login?role=student')
+    }, 2000)
+  } catch (error) {
+    const data = error.response?.data
+    if (data) {
+      passwordError.value = typeof data === 'string' ? data : (data.error || '修改失败')
+    } else {
+      passwordError.value = '网络错误，请稍后重试'
+    }
+  } finally {
+    passwordLoading.value = false
+  }
+}
+
+// 监听编辑弹窗打开，同步表单数据
+watch(showEditDialog, (val) => {
+  if (val) {
+    editForm.value = {
+      real_name: profile.value.real_name || '',
+      phone: profile.value.phone || '',
+      email: profile.value.email || ''
+    }
+    editError.value = ''
+    editSuccess.value = ''
+  }
+})
+
 onMounted(() => {
   fetchProfileData()
 })
@@ -169,6 +400,37 @@ onMounted(() => {
 }
 
 .container { display: flex; flex-direction: column; gap: 20px; }
+
+/* ===== 操作按钮栏 ===== */
+.actions-bar {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.btn-outline {
+  background: #fff;
+  color: var(--primary, #d97757);
+  border: 1px solid var(--primary, #d97757);
+}
+
+.btn-outline:hover {
+  background: var(--primary, #d97757);
+  color: #fff;
+}
 
 /* ===== 个人信息卡片 ===== */
 .profile-card {
@@ -196,7 +458,22 @@ onMounted(() => {
 }
 
 .profile-avatar h2 { margin: 0 0 4px; font-size: 1.3em; color: var(--ink, #2a2a2a); }
-.user-role { margin: 0; color: var(--muted, #6b655c); font-size: 13px; }
+.user-role { margin: 0 0 8px; color: var(--muted, #6b655c); font-size: 13px; }
+
+.contact-info {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.contact-item {
+  font-size: 13px;
+  color: var(--muted, #6b655c);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 .profile-stats {
   display: flex;
@@ -281,8 +558,152 @@ onMounted(() => {
   text-align: right;
 }
 
+/* ===== 弹窗 ===== */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog-card {
+  background: #fff;
+  border-radius: 14px;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px 0;
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 1.05em;
+  color: var(--ink, #2a2a2a);
+}
+
+.dialog-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--muted, #6b655c);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.dialog-body {
+  padding: 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialog-footer {
+  padding: 0 24px 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.form-group label {
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.required { color: #ef4444; }
+
+.form-group input {
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+  color: #1e293b;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  border-color: var(--primary, #d97757);
+  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.12);
+}
+
+.input-disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.form-error {
+  color: #dc2626;
+  font-size: 13px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+}
+
+.form-success {
+  color: #16a34a;
+  font-size: 13px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border-radius: 6px;
+  border: 1px solid #bbf7d0;
+}
+
+.btn-cancel {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+.btn-primary {
+  background: var(--primary, #d97757);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-active, #c46a4a);
+}
+
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .profile-stats { gap: 16px; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
+  .dialog-card { width: 95%; }
 }
 </style>

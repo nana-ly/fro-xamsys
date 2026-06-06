@@ -16,106 +16,98 @@ const props = defineProps({
 const chartRef = ref(null)
 let chartInstance = null
 
-const initChart = () => {
-  if (!chartRef.value) return
-
-  chartInstance = echarts.init(chartRef.value)
-
+const buildOption = () => {
   const xData = props.data.map(item => `第${item.questionNum}题`)
   const yData = props.data.map(item => item.accuracy)
+  const dataCount = xData.length
 
-  const option = {
-    title: {
-      text: '各题正确率统计',
-      left: 'center'
-    },
+  const showLabel = dataCount <= 15
+  const labelRotate = dataCount > 20 ? 90 : 45
+  const needZoom = dataCount > 15
+  const barW = dataCount > 25 ? 14 : dataCount > 12 ? 20 : undefined
+
+  return {
+    title: { text: '各题正确率统计', left: 'center' },
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      },
-      formatter: '{b}<br/>正确率: {c}%'
+      axisPointer: { type: 'shadow' },
+      formatter: (params) => `${params[0].name}<br/>正确率: <b>${params[0].value}%</b>`
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
+      left: '3%', right: '4%',
+      bottom: needZoom ? '14%' : '8%',
+      top: '15%',
       containLabel: true
     },
+    dataZoom: needZoom ? [{
+      type: 'slider',
+      start: 0,
+      end: dataCount > 30 ? 30 : 60,
+      height: 20,
+      bottom: '2%'
+    }] : [],
     xAxis: {
       type: 'category',
       data: xData,
       axisLabel: {
-        interval: 0,
-        rotate: 45
+        interval: dataCount > 25 ? 'auto' : 0,
+        rotate: labelRotate,
+        fontSize: dataCount > 20 ? 9 : 11
       }
     },
     yAxis: {
       type: 'value',
       name: '正确率(%)',
-      min: 0,
-      max: 100
+      min: 0, max: 100
     },
-    series: [
-      {
-        name: '正确率',
-        type: 'bar',
-        data: yData,
+    series: [{
+      name: '正确率',
+      type: 'bar',
+      data: yData,
+      barWidth: barW,
+      barMaxWidth: 40,
+      barMinWidth: 6,
+      itemStyle: {
+        borderRadius: [3, 3, 0, 0],
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#a0cfff' },
+          { offset: 0.5, color: '#409eff' },
+          { offset: 1, color: '#409eff' }
+        ])
+      },
+      emphasis: {
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#a0cfff' },
-            { offset: 0.5, color: '#409eff' },
-            { offset: 1, color: '#409eff' }
+            { offset: 0, color: '#337ecc' },
+            { offset: 0.7, color: '#337ecc' },
+            { offset: 1, color: '#a0cfff' }
           ])
-        },
-        emphasis: {
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#337ecc' },
-              { offset: 0.7, color: '#337ecc' },
-              { offset: 1, color: '#a0cfff' }
-            ])
-          }
-        },
-        label: {
-          show: true,
-          position: 'top',
-          formatter: '{c}%'
         }
+      },
+      label: {
+        show: showLabel,
+        position: 'top',
+        formatter: '{c}%',
+        fontSize: 10
       }
-    ]
+    }]
   }
+}
 
-  chartInstance.setOption(option)
+const initChart = () => {
+  if (!chartRef.value) return
+  chartInstance = echarts.init(chartRef.value)
+  chartInstance.setOption(buildOption())
 }
 
 const updateChart = () => {
   if (!chartInstance) return
-
-  const xData = props.data.map(item => `第${item.questionNum}题`)
-  const yData = props.data.map(item => item.accuracy)
-
-  chartInstance.setOption({
-    xAxis: {
-      data: xData
-    },
-    series: [
-      {
-        data: yData
-      }
-    ]
-  })
+  chartInstance.setOption(buildOption(), true)
 }
 
-watch(() => props.data, () => {
-  updateChart()
-}, { deep: true })
+watch(() => props.data, () => updateChart(), { deep: true })
 
-const handleResize = () => {
-  if (chartInstance) {
-    chartInstance.resize()
-  }
-}
+const handleResize = () => { if (chartInstance) chartInstance.resize() }
 
 onMounted(() => {
   initChart()
@@ -123,9 +115,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (chartInstance) {
-    chartInstance.dispose()
-  }
+  if (chartInstance) chartInstance.dispose()
   window.removeEventListener('resize', handleResize)
 })
 </script>
