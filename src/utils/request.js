@@ -53,11 +53,12 @@ request.interceptors.response.use(
                 case 400:
                     ElMessage.error(extractError(data))
                     break
-                case 401:
+                case 401: {
                     ElMessage.error('请先登录')
                     const role = window.location.pathname.startsWith('/teacher') ? 'teacher' : 'student'
                     router.push(`/login?role=${role}`)
                     break
+                }
                 case 403:
                     ElMessage.error('权限不足')
                     break

@@ -249,6 +249,7 @@ const score = ref(0)
 const correctCount = ref(0)
 const showAIModal = ref(false)
 const aiQuestion = ref(null)
+const examRecordId = ref(null)
 
 let timerInterval = null
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
@@ -443,6 +444,43 @@ function reviewAnswers() {
   saveResultToStorage()
 }
 
+function calculateFrontendScore() {
+  let correct = 0
+  questions.value.forEach(q => {
+    const userAnswer = answers.value[q.id] || ''
+    const correctAnswer = q.answer
+    if (String(userAnswer).trim() === String(correctAnswer).trim()) {
+      correct++
+    }
+  })
+  correctCount.value = correct
+  const total = questions.value.length
+  score.value = total > 0 ? Math.round((correct / total) * 100) : 0
+}
+
+function handleTabSwitch() {
+  if (document.hidden && examRecordId.value) {
+    fetch('/api/student/api/report_tab_switch/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exam_record_id: examRecordId.value })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.force_submit) {
+        alert(data.warning)
+        // 前端算分
+        calculateFrontendScore()
+        // 显示成绩弹窗
+        showResultModal.value = true
+        showResult.value = true
+      } else if (data.warning) {
+        alert(data.warning)
+      }
+    })
+  }
+}
+
 function openAIQuestion(question) {
   aiQuestion.value = question
   showAIModal.value = true
@@ -476,7 +514,13 @@ async function loadExam() {
       remainingSeconds.value = examInfo.value.duration * 60
     }
     // 调用开始考试接口，创建 ongoing 记录
-    await startExam(examId)
+    const startRes = await fetch('/api/student/exams/' + examId + '/start/', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    const startData = await startRes.json()
+    examRecordId.value = startData.exam_record_id
   } catch (err) {
     error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
   }
@@ -487,10 +531,12 @@ async function loadExam() {
 
 onMounted(() => {
   loadExam()
+  document.addEventListener('visibilitychange', handleTabSwitch)
 })
 
 onBeforeUnmount(() => {
   if (timerInterval) clearInterval(timerInterval)
+  document.removeEventListener('visibilitychange', handleTabSwitch)
 })
 </script>
 
