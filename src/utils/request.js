@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import router from '@/router'
 
 const request = axios.create({
-    baseURL: '/api',
+    baseURL: process.env.VUE_APP_API_URL || '/api',
     timeout: 10000,
     withCredentials: true
 })

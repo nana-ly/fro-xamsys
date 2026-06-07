@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: process.env.VUE_APP_API_URL || '/api',
   timeout: 15000,
   withCredentials: true
 })
