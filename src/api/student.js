@@ -184,7 +184,7 @@ export function updateProfile(data) {
 
 // 修改密码（需要旧密码）
 export function changePassword(data) {
-  return api.post('/student/change_password/', data)
+  return api.post('/student/change-password/', data)
 }
 
 // 忘记密码重置
