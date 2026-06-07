@@ -209,7 +209,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import StudyHeatmap from '@/components/StudyHeatmap.vue'
 import { updateProfile, changePassword, getProfile } from '@/api/student'
-import request from '@/utils/request'
+
 
 const router = useRouter()
 const userName = ref(localStorage.getItem('student_userName') || localStorage.getItem('userName') || '同学')
@@ -331,17 +331,6 @@ async function fetchProfileData() {
   } finally {
     loading.value = false
   }
-}
-
-function openEditDialog() {
-  editForm.value = {
-    real_name: profile.value.real_name || '',
-    phone: profile.value.phone || '',
-    email: profile.value.email || ''
-  }
-  editError.value = ''
-  editSuccess.value = ''
-  showEditDialog.value = true
 }
 
 async function handleSaveProfile() {

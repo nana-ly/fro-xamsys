@@ -91,9 +91,9 @@
       </div>
 
       <!-- 练习模式入口 -->
-      <div class="practice-section card">
+      <div class="practice-section">
         <h3>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
             <line x1="16" y1="13" x2="8" y2="13"/>
@@ -102,14 +102,36 @@
           </svg>
           练习模式
         </h3>
-        <p class="section-desc">随时随地刷题练习，即时查看答案和解析</p>
-        <div class="practice-actions">
-          <button class="btn btn-primary" @click="openPracticeDialog">
-            从题库选题
-          </button>
-          <button class="btn btn-secondary" @click="openAIQuestion">
-            AI 智能出题
-          </button>
+        <div class="practice-grid">
+          <!-- 从题库选题 -->
+          <div class="practice-card practice-card-bank" @click="openPracticeDialog">
+            <div class="practice-card-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                <line x1="8" y1="7" x2="16" y2="7"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+            </div>
+            <div class="practice-card-body">
+              <h4>从题库选题</h4>
+              <p>按知识点与题型自由筛选，海量题库任你练</p>
+              <button class="btn btn-practice-bank" @click.stop="openPracticeDialog">开始选题</button>
+            </div>
+          </div>
+          <!-- AI 智能出题 -->
+          <div class="practice-card practice-card-ai" @click="openAIQuestion">
+            <div class="practice-card-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+            </div>
+            <div class="practice-card-body">
+              <h4>AI 智能出题</h4>
+              <p>输入知识点，AI 自动生成针对性练习题</p>
+              <button class="btn btn-practice-ai" @click.stop="openAIQuestion">智能生成</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -570,6 +592,7 @@ function startPracticeFromBank() {
   if (practiceParams.questionType) params.set('question_type', practiceParams.questionType)
   params.set('count', String(practiceParams.count))
   showPracticeDialog.value = false
+  sessionStorage.removeItem('practice_result')  // 清除旧缓存
   router.push(`/student/practice?${params.toString()}`)
 }
 
@@ -583,7 +606,8 @@ function openAIQuestion() {
 function goAIPractice() {
   if (aiResult.value) {
     const questions = Array.isArray(aiResult.value) ? aiResult.value : [aiResult.value]
-    localStorage.setItem('aiQuestions', JSON.stringify(questions))
+    sessionStorage.removeItem('practice_result')  // 清除旧缓存
+    sessionStorage.setItem('aiQuestions', JSON.stringify(questions))
     router.push('/student/practice?source=ai')
   }
   showAIQuestion.value = false
@@ -882,12 +906,9 @@ onUnmounted(() => {
 }
 
 /* ===== 卡片区域 ===== */
-.practice-section {
-  padding: 24px;
-}
-
+/* ===== 练习模式 ===== */
 .practice-section h3 {
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   font-size: 1.1em;
   font-weight: 600;
   color: var(--ink, #2a2a2a);
@@ -896,16 +917,125 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-.section-desc {
-  margin: 0 0 16px 0;
-  color: var(--muted, #6b655c);
-  font-size: 14px;
+.practice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
 }
 
-.practice-actions {
+.practice-card {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 24px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border: 1px solid var(--hairline, #e8e0d5);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--card-bg, #ffffff);
+}
+
+.practice-card:hover {
+  transform: translateY(-2px);
+}
+
+.practice-card-bank {
+  border-left: 4px solid var(--primary, #d97757);
+}
+
+.practice-card-bank:hover {
+  box-shadow: 0 6px 24px rgba(217, 119, 87, 0.15);
+  border-color: var(--primary, #d97757);
+}
+
+.practice-card-ai {
+  border-left: 4px solid #e8964a;
+}
+
+.practice-card-ai:hover {
+  box-shadow: 0 6px 24px rgba(232, 150, 74, 0.15);
+  border-color: #e8964a;
+}
+
+.practice-card-icon {
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md, 10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.practice-card-bank .practice-card-icon {
+  background: linear-gradient(135deg, rgba(217, 119, 87, 0.15), rgba(217, 119, 87, 0.08));
+  color: var(--primary, #d97757);
+}
+
+.practice-card-ai .practice-card-icon {
+  background: linear-gradient(135deg, rgba(232, 150, 74, 0.15), rgba(217, 119, 87, 0.08));
+  color: #e8964a;
+}
+
+.practice-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.practice-card-body h4 {
+  margin: 0 0 4px 0;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--ink, #2a2a2a);
+}
+
+.practice-card-body p {
+  margin: 0 0 12px 0;
+  font-size: 12.5px;
+  color: var(--muted, #6b655c);
+  line-height: 1.5;
+}
+
+.btn-practice-bank,
+.btn-practice-ai {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 18px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all 0.2s;
+  color: #fff;
+}
+
+.btn-practice-bank {
+  background: linear-gradient(135deg, #d97757, #c46a4a);
+}
+
+.btn-practice-bank:hover {
+  background: linear-gradient(135deg, #c46a4a, #b55e40);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(217, 119, 87, 0.35);
+}
+
+.btn-practice-ai {
+  background: linear-gradient(135deg, #e8964a, #d97757);
+}
+
+.btn-practice-ai:hover {
+  background: linear-gradient(135deg, #d98345, #c46a4a);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(232, 150, 74, 0.35);
+}
+
+.section-desc {
+  margin: 0 0 12px 0;
+  color: var(--muted, #6b655c);
+  font-size: 14px;
 }
 
 /* ===== 最近做题记录 ===== */

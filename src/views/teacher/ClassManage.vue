@@ -1,7 +1,6 @@
 <template>
   <div class="class-manage">
     <div class="page-header">
-      <h2>班级管理</h2>
       <el-button type="primary" icon="Plus" @click="showAddClassDialog">
         创建班级
       </el-button>
@@ -36,17 +35,11 @@
           </template>
 
           <div class="class-info">
-            <div class="info-item class-code-item">
+            <div class="info-item">
               <el-icon><Key /></el-icon>
-              <span class="class-code-label">班级码：</span>
-              <code class="class-code-value">{{ classItem.class_code || '未生成' }}</code>
-              <el-button
-                v-if="classItem.class_code"
-                type="primary"
-                link
-                size="small"
-                class="copy-code-btn"
-                @click.stop="copyClassCode(classItem.class_code)">
+              <span>班级码：</span>
+              <code style="font-size:13px;color:#d97757;background:rgba(217,119,87,0.08);padding:1px 6px;border-radius:3px">{{ classItem.class_code || '-' }}</code>
+              <el-button v-if="classItem.class_code" type="primary" link size="small" @click.stop="copyClassCode(classItem.class_code)">
                 <el-icon><CopyDocument /></el-icon>
               </el-button>
             </div>
@@ -275,9 +268,9 @@ const fetchClassList = async () => {
     const res = await getClassList()
     let classes = res.results || res
 
-    // 只显示当前教师创建的班级（宽松比较：后端可能返回数字或字符串）
+    // 只显示当前教师创建的班级
     if (userInfo.id) {
-      classes = classes.filter(cls => String(cls.teacher) === String(userInfo.id))
+      classes = classes.filter(cls => cls.teacher === userInfo.id)
     }
 
     // 批量查询每个班级的学生数和考试数
@@ -368,13 +361,8 @@ const handleClassSubmit = async () => {
       await updateClass(editingClassId.value, classForm)
       ElMessage.success('更新成功')
     } else {
-      const res = await createClass(classForm)
-      const code = res.class_code || '未生成'
-      ElMessage.success({
-        message: `班级「${classForm.name}」创建成功！班级码：${code}`,
-        duration: 8000,
-        showClose: true
-      })
+      await createClass(classForm)
+      ElMessage.success('创建成功')
     }
 
     classDialogVisible.value = false
@@ -514,6 +502,13 @@ const removeStudent = async (studentId) => {
   }
 }
 
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN')
+}
+
 // 复制班级码
 const copyClassCode = (code) => {
   navigator.clipboard.writeText(code).then(() => {
@@ -521,13 +516,6 @@ const copyClassCode = (code) => {
   }).catch(() => {
     ElMessage.info(`班级码：${code}`)
   })
-}
-
-// 格式化日期
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-CN')
 }
 
 // 页面加载
@@ -550,7 +538,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: var(--ink, #333);
+  color: #333;
 }
 
 .class-card {
@@ -571,7 +559,7 @@ onMounted(() => {
 .class-name {
   font-size: 18px;
   font-weight: bold;
-  color: var(--ink, #333);
+  color: #333;
 }
 
 .more-icon {
@@ -587,39 +575,12 @@ onMounted(() => {
   display: flex;
   align-items: center;
   margin-bottom: 10px;
-  color: var(--muted, #666);
+  color: #666;
 }
 
 .info-item .el-icon {
   margin-right: 8px;
   color: #409eff;
-}
-
-.class-code-item {
-  background: #f0f5ff;
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin-bottom: 12px;
-}
-
-.class-code-label {
-  font-weight: 500;
-  margin-right: 4px;
-}
-
-.class-code-value {
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  font-weight: bold;
-  color: #1d6def;
-  background: #e6f0ff;
-  padding: 2px 8px;
-  border-radius: 4px;
-  letter-spacing: 1px;
-}
-
-.copy-code-btn {
-  margin-left: 4px;
 }
 
 .card-actions {

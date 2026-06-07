@@ -134,7 +134,7 @@ const quickLinks = [
   { path: '/teacher/question-bank', label: '题库管理', icon: Collection, bg: 'rgba(64,158,255,0.1)' },
   { path: '/teacher/exam-list', label: '试卷管理', icon: Document, bg: 'rgba(103,194,58,0.1)' },
   { path: '/teacher/class-manage', label: '班级管理', icon: Tickets, bg: 'rgba(230,162,60,0.1)' },
-  { path: '/teacher/score-view', label: '成绩查看', icon: UserFilled, bg: 'rgba(217,119,87,0.1)' }
+  { path: '/teacher/score-view', label: '成绩管理', icon: UserFilled, bg: 'rgba(217,119,87,0.1)' }
 ]
 
 // 编辑资料
@@ -177,15 +177,26 @@ async function fetchUserInfo() {
 // 获取统计数据
 async function fetchStats() {
   try {
+    const userInfo = JSON.parse(
+      localStorage.getItem('teacher_userInfo') ||
+      localStorage.getItem('userInfo') ||
+      '{}'
+    )
+    const teacherId = userInfo.id
+
     const [classRes, examRes, questionRes] = await Promise.allSettled([
       getClassList(),
       getExamList({ page_size: 1 }),
       getQuestionList({ page_size: 1 })
     ])
 
+    // 只统计当前教师的班级
+    let myClasses = []
     if (classRes.status === 'fulfilled') {
-      const classes = classRes.value.results || classRes.value
-      stats.classCount = Array.isArray(classes) ? classes.length : 0
+      const all = classRes.value.results || classRes.value
+      const classes = Array.isArray(all) ? all : []
+      myClasses = teacherId ? classes.filter(c => c.teacher === teacherId) : classes
+      stats.classCount = myClasses.length
     }
 
     if (examRes.status === 'fulfilled') {
@@ -198,21 +209,20 @@ async function fetchStats() {
       stats.questionCount = questionRes.value.count ?? (Array.isArray(questions) ? questions.length : 0)
     }
 
-    // 学生总数 = 所有班级学生数之和（并发请求）
-    if (classRes.status === 'fulfilled') {
-      const classes = classRes.value.results || classRes.value
-      if (Array.isArray(classes) && classes.length > 0) {
-        const stuResults = await Promise.allSettled(
-          classes.map(cls => request({ url: `/users/classes/${cls.id}/students/`, method: 'get' }))
-        )
-        stats.studentCount = stuResults.reduce((sum, r) => {
-          if (r.status === 'fulfilled') {
-            const students = r.value.results || r.value
-            return sum + (Array.isArray(students) ? students.length : 0)
-          }
-          return sum
-        }, 0)
-      }
+    // 学生总数 = 当前教师班级的学生数之和
+    if (myClasses.length > 0) {
+      const stuResults = await Promise.allSettled(
+        myClasses.map(cls => request({ url: `/users/classes/${cls.id}/students/`, method: 'get' }))
+      )
+      stats.studentCount = stuResults.reduce((sum, r) => {
+        if (r.status === 'fulfilled') {
+          const students = r.value.results || r.value
+          return sum + (Array.isArray(students) ? students.length : 0)
+        }
+        return sum
+      }, 0)
+    } else {
+      stats.studentCount = 0
     }
   } catch {
     // 统计失败不影响主界面

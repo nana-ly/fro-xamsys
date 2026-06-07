@@ -241,7 +241,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { getWrongBook, toggleMaster, addWrongQuestion, deleteWrongQuestion } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 

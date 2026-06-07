@@ -63,7 +63,7 @@ const routes = [
         path: 'score-view',
         name: 'ScoreView',
         component: ScoreView,
-        meta: { title: '成绩查看' }
+        meta: { title: '成绩管理' }
       },
       {
         path: 'exam-list',
@@ -91,6 +91,12 @@ const routes = [
         name: 'StudentHome',
         component: () => import('@/views/student/StudentHome.vue'),
         meta: { title: '学生首页' }
+      },
+      {
+        path: 'exam/:id?/start',
+        name: 'ExamStart',
+        component: () => import('@/views/student/ExamStart.vue'),
+        meta: { title: '考前须知' }
       },
       {
         path: 'exam/:id?',

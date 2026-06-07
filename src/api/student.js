@@ -86,8 +86,10 @@ export function startExam(examId) {
 }
 
 // 提交答案
-export function submitExam(examId, answers) {
-  return api.post(`/student/exams/${examId}/submit/`, { answers })
+export function submitExam(examId, answers, examRecordId = null) {
+  const payload = { answers }
+  if (examRecordId) payload.exam_record_id = examRecordId
+  return api.post(`/student/exams/${examId}/submit/`, payload)
 }
 
 // 保存答题进度（自动保存 + 服务端超时验证）

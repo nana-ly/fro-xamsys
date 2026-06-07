@@ -343,10 +343,6 @@ function getScoreClass(score) {
   return 'low'
 }
 
-function isChoiceType(type) {
-  return type === 'choice' || type === 'multiple' || type === 'multiple_choice'
-}
-
 function isTextType(type) {
   return type === 'fill_blank' || type === 'essay'
 }

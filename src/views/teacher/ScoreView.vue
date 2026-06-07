@@ -1,9 +1,5 @@
 <template>
   <div class="score-view">
-    <div class="page-header">
-      <h2>成绩管理</h2>
-    </div>
-
     <!-- 筛选区 -->
     <el-card class="filter-card">
       <el-form :inline="true">
@@ -374,9 +370,9 @@ const fetchClassList = async () => {
     const res = await getClassList()
     let classes = res.results || res
 
-    // 只显示当前教师创建的班级（宽松比较）
+    // 只显示当前教师创建的班级
     if (userInfo.id) {
-      classes = classes.filter(cls => String(cls.teacher) === String(userInfo.id))
+      classes = classes.filter(cls => cls.teacher === userInfo.id)
     }
 
     classList.value = classes
@@ -544,7 +540,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: var(--ink, #333);
+  color: #333;
 }
 
 .filter-card {
@@ -598,14 +594,14 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: bold;
-  color: var(--ink, #333);
+  color: #333;
   line-height: 1;
   margin-bottom: 8px;
 }
 
 .stat-label {
   font-size: 14px;
-  color: var(--muted-soft, #999);
+  color: #999;
 }
 
 /* 图表区域 */
@@ -622,7 +618,7 @@ onMounted(() => {
 .answer-item {
   margin-bottom: 30px;
   padding: 15px;
-  background: var(--canvas, #f5f5f5);
+  background: #f5f5f5;
   border-radius: 5px;
 }
 
@@ -661,7 +657,7 @@ onMounted(() => {
 
 .answer-line .label {
   font-weight: bold;
-  color: var(--muted, #666);
+  color: #666;
   margin-right: 10px;
 }
 

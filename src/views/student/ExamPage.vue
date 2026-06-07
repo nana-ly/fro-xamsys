@@ -2,7 +2,7 @@
   <div class="exam-page">
     <div class="container">
       <!-- 返回按钮 -->
-      <button class="btn btn-back" @click="$router.push('/student/home')">
+      <button class="btn btn-back" @click="handleBackClick">
         ← 返回主页
       </button>
 
@@ -19,8 +19,19 @@
           <div class="timer" :class="{ 'timer--warning': remainingSeconds <= 300 }">
             {{ formatTime(remainingSeconds) }}
           </div>
-          <button class="btn btn-primary" @click="submitExam" :disabled="showResult">
-            {{ showResult ? '已提交' : '交卷' }}
+          <button
+            v-if="!examSubmitted"
+            class="btn btn-primary"
+            @click="submitExam"
+          >
+            交卷
+          </button>
+          <button
+            v-else
+            class="btn btn-submitted"
+            disabled
+          >
+            已提交
           </button>
         </div>
       </div>
@@ -181,6 +192,43 @@
         </div>
       </div>
 
+      <!-- 返回确认弹窗 -->
+      <div v-if="showBackModal" class="modal-overlay" @click.self="showBackModal = false">
+        <div class="confirm-modal card">
+          <div class="modal-icon warn-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h3>确认返回？</h3>
+          <p class="modal-desc">中途返回将自动交卷并计算成绩，确认要返回吗？</p>
+          <div class="modal-actions">
+            <button class="btn btn-outline" @click="showBackModal = false">继续答题</button>
+            <button class="btn btn-primary" @click="confirmBack">确认返回</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 切屏警告弹窗 -->
+      <div v-if="showTabModal" class="modal-overlay">
+        <div class="confirm-modal card">
+          <div class="modal-icon info-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+          </div>
+          <h3>切屏提醒</h3>
+          <p class="modal-desc">{{ tabModalMessage }}</p>
+          <div class="modal-actions">
+            <button class="btn btn-primary" @click="showTabModal = false">我知道了</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 交卷确认弹窗 -->
       <div v-if="showSubmitModal" class="modal-overlay" @click.self="showSubmitModal = false">
         <div class="confirm-modal card">
@@ -191,8 +239,8 @@
           </p>
           <div class="modal-actions">
             <button class="btn btn-outline" @click="showSubmitModal = false">继续答题</button>
-            <button class="btn btn-primary" @click="confirmSubmit" :disabled="submitting">
-              {{ submitting ? '提交中...' : '确认交卷' }}
+            <button class="btn btn-primary" @click="confirmSubmit">
+              确认交卷
             </button>
           </div>
         </div>
@@ -201,14 +249,23 @@
       <!-- 成绩弹窗 -->
       <div v-if="showResultModal" class="modal-overlay">
         <div class="result-modal card">
-          <div class="result-icon">{{ score >= 60 ? '\u2713' : '\u2726' }}</div>
-          <h2>{{ score >= 60 ? '恭喜完成！' : '继续加油！' }}</h2>
-          <div class="result-score">{{ score }} 分</div>
-          <p>正确 {{ correctCount }} / {{ questions.length }} 题</p>
-          <div class="modal-actions">
-            <button class="btn btn-outline" @click="reviewAnswers">查看解析</button>
-            <button class="btn btn-primary" @click="$router.push('/student/home')">返回首页</button>
-          </div>
+          <template v-if="resultLoading">
+            <div style="display: flex; flex-direction: column; align-items: center;">
+              <div class="spinner"></div>
+              <p style="margin-top: 16px; color: var(--muted, #6b655c);">正在提交试卷...</p>
+            </div>
+          </template>
+          <template v-else>
+            <div class="result-icon">{{ score >= 60 ? '\u2713' : '\u2726' }}</div>
+            <h2>{{ score >= 60 ? '恭喜完成！' : '继续加油！' }}</h2>
+            <div class="result-score">{{ score }} 分</div>
+            <p>正确 {{ correctCount }} / {{ questions.length }} 题</p>
+            <p v-if="submitReason === 'tab_switch'" class="tab-submit-notice">您已切屏三次，考试结束。</p>
+            <div class="modal-actions">
+              <button class="btn btn-outline" @click="reviewAnswers">查看解析</button>
+              <button class="btn btn-primary" @click="$router.push('/student/home')">返回首页</button>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -225,11 +282,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
-import { getExamDetail, startExam, submitExam as submitExamApi, saveProgress as saveProgressApi } from '@/api/student'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { getExamDetail, submitExam as submitExamApi, saveProgress as saveProgressApi } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const examId = route.params.id || '0'
 
 const loading = ref(false)
@@ -241,13 +299,20 @@ const currentIndex = ref(0)
 const remainingSeconds = ref(3600)
 const showSubmitModal = ref(false)
 const showResultModal = ref(false)
-const submitting = ref(false)
+const showBackModal = ref(false)
+const showTabModal = ref(false)
+const tabModalMessage = ref('')
+const tabSwitchCount = ref(0)
+const submitReason = ref('') // 'tab_switch' 表示因切屏交卷
+const resultLoading = ref(false)
 const showResult = ref(false)
 const score = ref(0)
 const correctCount = ref(0)
 const showAIModal = ref(false)
 const aiQuestion = ref(null)
 const examRecordId = ref(null)
+const examSubmitted = ref(false)
+const examOngoing = ref(false)
 
 let timerInterval = null
 let heartbeatInterval = null
@@ -328,11 +393,6 @@ const TIMER_KEY = 'exam_timer_' + examId
 const ANSWERS_KEY = 'exam_answers_' + examId
 const RESULT_KEY = 'exam_result_' + examId
 
-function saveTimerToStorage() {
-  // 存的是考试开始的绝对时间戳
-  localStorage.setItem(TIMER_KEY, Date.now().toString())
-}
-
 function saveAnswersToStorage() {
   localStorage.setItem(ANSWERS_KEY, JSON.stringify(answers.value))
 }
@@ -406,18 +466,22 @@ function submitExam() {
 
 async function confirmSubmit() {
   showSubmitModal.value = false
-  submitting.value = true
+  examSubmitted.value = true
+  examOngoing.value = false
+  clearInterval(timerInterval)
+  // 立即弹出成绩弹窗（loading 态）
+  showResultModal.value = true
+  resultLoading.value = true
 
   try {
     const answerList = questions.value.map(q => ({
       question_id: q.id,
       answer: answers.value[q.id] || ''
     }))
-    const res = await submitExamApi(examId, answerList)
+    const res = await submitExamApi(examId, answerList, examRecordId.value)
     const data = res.data || {}
     score.value = data.score || 0
     correctCount.value = data.correct || 0
-    // 把后端返回的 details 合并回 questions（含 correct_answer 和 analysis）
     if (data.details) {
       questions.value = questions.value.map(q => {
         const detail = data.details.find(d => d.question_id === q.id)
@@ -428,15 +492,64 @@ async function confirmSubmit() {
       })
     }
     showResult.value = true
-    showResultModal.value = true
-    clearInterval(timerInterval)
     clearExamStorage()
     saveResultToStorage()
     saveAnswersToStorage()
   } catch (err) {
     error.value = '提交失败：' + (err.response?.data?.error || '网络错误')
   } finally {
-    submitting.value = false
+    resultLoading.value = false
+  }
+}
+
+// 静默交卷（用于离开页面/切屏自动提交）
+async function silentSubmit() {
+  if (!examOngoing.value || examSubmitted.value) return
+  try {
+    const answerList = questions.value.map(q => ({
+      question_id: q.id,
+      answer: answers.value[q.id] || ''
+    }))
+    await submitExamApi(examId, answerList, examRecordId.value)
+  } catch { /* 静默失败 */ }
+  examSubmitted.value = true
+  examOngoing.value = false
+  clearInterval(timerInterval)
+  clearExamStorage()
+  saveAnswersToStorage()
+}
+
+function handleBackClick() {
+  if (examOngoing.value && !examSubmitted.value) {
+    showBackModal.value = true
+  } else {
+    router.push('/student/home')
+  }
+}
+
+async function confirmBack() {
+  showBackModal.value = false
+  await confirmSubmit()
+  // confirmSubmit 已经显示了成绩弹窗，不需要额外跳转
+  // 成绩弹窗里有"返回首页"按钮
+}
+
+async function startExamSession() {
+  try {
+    // 调用开始考试接口，创建 ongoing 记录
+    const startRes = await fetch('/api/student/exams/' + examId + '/start/', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    })
+    const startData = await startRes.json()
+    examRecordId.value = startData.exam_record_id
+    examOngoing.value = true
+    startTimer()
+    startHeartbeat()
+    document.addEventListener('visibilitychange', handleTabSwitch)
+  } catch (err) {
+    error.value = '开始考试失败：' + (err.response?.data?.error || '网络错误')
   }
 }
 
@@ -445,40 +558,44 @@ function reviewAnswers() {
   saveResultToStorage()
 }
 
-function calculateFrontendScore() {
-  let correct = 0
-  questions.value.forEach(q => {
-    const userAnswer = answers.value[q.id] || ''
-    const correctAnswer = q.answer
-    if (String(userAnswer).trim() === String(correctAnswer).trim()) {
-      correct++
-    }
-  })
-  correctCount.value = correct
-  const total = questions.value.length
-  score.value = total > 0 ? Math.round((correct / total) * 100) : 0
-}
-
 function handleTabSwitch() {
   if (document.hidden && examRecordId.value) {
     fetch('/api/student/api/report_tab_switch/', {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ exam_record_id: examRecordId.value })
     })
     .then(res => res.json())
-    .then(data => {
+    .then(async data => {
       if (data.force_submit) {
-        alert(data.warning)
-        calculateFrontendScore()
-        showResultModal.value = true
+        // 第3次切屏：强制交卷，后端已在 report_tab_switch 中自动提交并返回评分结果
+        examSubmitted.value = true
+        examOngoing.value = false
+        submitReason.value = 'tab_switch'
+        score.value = data.score || 0
+        correctCount.value = data.correct || 0
+        if (data.details) {
+          questions.value = questions.value.map(q => {
+            const detail = data.details.find(d => d.question_id === q.id)
+            if (detail) {
+              return { ...q, answer: detail.correct_answer, analysis: detail.explanation || '' }
+            }
+            return q
+          })
+        }
         showResult.value = true
+        showResultModal.value = true
+        clearInterval(timerInterval)
+        clearExamStorage()
+        saveResultToStorage()
+        saveAnswersToStorage()
       } else if (data.warning) {
-        alert(data.warning)
+        // 第1次或第2次切屏：显示提醒弹窗
+        tabSwitchCount.value = data.switch_count || (tabSwitchCount.value + 1)
+        tabModalMessage.value = '已切屏离开 ' + tabSwitchCount.value + ' 次，累计切屏三次试卷将自动提交。请保持在考试页面内作答！'
+        showTabModal.value = true
       }
     })
-    .catch(() => { /* 静默：网络异常不影响答题 */ })
   }
 }
 
@@ -498,6 +615,7 @@ async function loadExam() {
     try {
       const r = JSON.parse(savedResult)
       if (r.showResult) {
+        examSubmitted.value = true
         showResult.value = true
         showResultModal.value = r.showResultModal
         score.value = r.score
@@ -514,21 +632,21 @@ async function loadExam() {
     if (examInfo.value?.duration) {
       remainingSeconds.value = examInfo.value.duration * 60
     }
-    // 调用开始考试接口，创建 ongoing 记录
-    const startRes = await fetch('/api/student/exams/' + examId + '/start/', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    })
-    if (!startRes.ok) throw new Error('开始考试失败')
-    const startData = await startRes.json()
-    examRecordId.value = startData.exam_record_id
   } catch (err) {
     error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
   }
   loading.value = false
 
-  startTimer()
+  // 如果没有已提交的结果，且不是从须知页进入的，则跳转到考前须知页
+  if (!examSubmitted.value && route.query.from !== 'start') {
+    router.replace(`/student/exam/${examId}/start`)
+    return
+  }
+
+  // 从须知页进入，自动开始考试
+  if (route.query.from === 'start') {
+    await startExamSession()
+  }
 }
 
 let autoSaveTimer = null
@@ -569,10 +687,31 @@ function startHeartbeat() {
   }, 120000) // 2 分钟
 }
 
+// 路由离开守卫：考试进行中则自动交卷
+onBeforeRouteLeave((_to, _from, next) => {
+  if (examOngoing.value && !examSubmitted.value) {
+    silentSubmit().then(() => next())
+  } else {
+    next()
+  }
+})
+
+// 浏览器关闭/刷新监听
+function handleBeforeUnload() {
+  if (examOngoing.value && !examSubmitted.value) {
+    // 尝试同步提交（navigator.sendBeacon 更可靠）
+    const answerList = questions.value.map(q => ({
+      question_id: q.id,
+      answer: answers.value[q.id] || ''
+    }))
+    const payload = JSON.stringify(answerList)
+    navigator.sendBeacon('/api/student/exams/' + examId + '/submit/', new Blob([payload], { type: 'application/json' }))
+  }
+}
+
 onMounted(() => {
   loadExam()
-  startHeartbeat()
-  document.addEventListener('visibilitychange', handleTabSwitch)
+  window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
 onBeforeUnmount(() => {
@@ -580,6 +719,7 @@ onBeforeUnmount(() => {
   if (heartbeatInterval) clearInterval(heartbeatInterval)
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
   document.removeEventListener('visibilitychange', handleTabSwitch)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
 
@@ -622,6 +762,19 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.btn-submitted {
+  padding: 8px 20px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--hairline, #e3dbd0);
+  background: #e0e0e0;
+  color: #999;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: not-allowed;
+  pointer-events: none;
+  font-family: inherit;
+}
+
 .timer {
   font-size: 1.4em;
   font-weight: 700;
@@ -643,33 +796,32 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 14px 20px;
+  padding: 14px 16px;
+  align-items: center;
 }
 
 .nav-label {
-  width: 100%;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--ink, #2c2c2c);
-  margin-bottom: 4px;
+  color: var(--muted, #6b655c);
+  margin-right: 4px;
 }
 
 .nav-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md, 8px);
-  border: 1.5px solid var(--hairline, #e8e0d5);
+  border: 1.5px solid var(--hairline, #e3dbd0);
   background: var(--card-bg, #ffffff);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--muted, #6b6b6b);
+  color: var(--muted, #6b655c);
   transition: all 0.2s;
   font-family: inherit;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-dot:hover {
@@ -692,6 +844,14 @@ onBeforeUnmount(() => {
 
 .nav-dot.correct { background: rgba(93,184,114,0.12); border-color: #5db872; color: #5db872; }
 .nav-dot.wrong { background: rgba(198,69,69,0.1); border-color: #c64545; color: #c64545; }
+
+@media (max-width: 600px) {
+  .nav-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+}
 
 /* ===== 题目卡片 ===== */
 .question-card {
@@ -899,6 +1059,33 @@ onBeforeUnmount(() => {
   margin-top: 8px;
 }
 
+.modal-desc {
+  color: var(--muted, #6b655c);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+
+.modal-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.warn-icon {
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+}
+
+.info-icon {
+  background: rgba(241, 196, 15, 0.1);
+  color: #f39c12;
+}
+
 .result-icon {
   width: 56px;
   height: 56px;
@@ -918,6 +1105,17 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: var(--primary, #d97757);
   margin: 10px 0;
+}
+
+.tab-submit-notice {
+  color: #e74c3c;
+  font-size: 14px;
+  font-weight: 500;
+  margin: 8px 0 0;
+  padding: 6px 12px;
+  background: rgba(231, 76, 60, 0.08);
+  border-radius: 6px;
+  display: inline-block;
 }
 
 .modal-actions {

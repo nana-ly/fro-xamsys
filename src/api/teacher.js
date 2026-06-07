@@ -35,7 +35,7 @@ export const getCurrentUser = () => {
 // ========== 题库管理 (对应 question_bank) ==========
 export const getQuestionList = (params) => {
     return request({
-        url: '/question-bank/',
+        url: '/question-bank/filter/',
         method: 'get',
         params
     })

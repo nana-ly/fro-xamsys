@@ -8,6 +8,14 @@ module.exports = defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true
       }
+    },
+    client: {
+      overlay: {
+        runtimeErrors: (error) => {
+          if (error.message?.includes('ResizeObserver')) return false
+          return true
+        }
+      }
     }
   }
 })

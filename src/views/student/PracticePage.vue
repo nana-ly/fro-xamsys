@@ -15,8 +15,19 @@
           </div>
         </div>
         <div class="practice-header-right">
-          <button class="btn btn-primary" @click="submitPractice" :disabled="showResult">
-            {{ showResult ? '已提交' : '提交练习' }}
+          <button
+            v-if="!practiceSubmitted"
+            class="btn btn-primary"
+            @click="submitPractice"
+          >
+            提交练习
+          </button>
+          <button
+            v-else
+            class="btn btn-submitted"
+            disabled
+          >
+            已提交
           </button>
         </div>
       </div>
@@ -31,6 +42,22 @@
       <div v-if="error" class="error-state card">
         <p>{{ error }}</p>
         <button class="btn btn-primary" @click="$router.back()">返回</button>
+      </div>
+
+      <!-- 空状态：选题入口（仅在非加载且无题目时显示，避免与首页卡片重复） -->
+      <div v-if="!showResult && !loading && questions.length === 0" class="practice-options">
+        <div class="option-card" @click="loadFromBank">
+          <div class="option-icon">📋</div>
+          <h3>从题库选题</h3>
+          <p>按知识点、题型筛选题目</p>
+          <span class="arrow">→</span>
+        </div>
+        <div class="option-card" @click="loadFromAI">
+          <div class="option-icon">🤖</div>
+          <h3>AI 智能出题</h3>
+          <p>输入知识点，AI 自动生成题目</p>
+          <span class="arrow">→</span>
+        </div>
       </div>
 
       <!-- 题目列表 -->
@@ -218,7 +245,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getPracticeQuestions, addWrongQuestion, submitPracticeAnswers } from '@/api/student'
+import { getPracticeQuestions, addWrongQuestion, savePracticeRecord, submitPracticeAnswers } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -240,6 +267,7 @@ const wrongCount = ref(0)
 const showAIModal = ref(false)
 const aiQuestion = ref(null)
 const addingWrongIds = ref(new Set())
+const practiceSubmitted = ref(false)
 
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
 
@@ -373,6 +401,7 @@ async function confirmSubmit() {
   submitting.value = true
 
   calculateScore()
+  practiceSubmitted.value = true
   showResultModal.value = true
   showResult.value = true
 
@@ -386,26 +415,36 @@ async function confirmSubmit() {
     questions: questions.value
   }))
 
-  // 一次性提交所有答题（POST /api/student/practice/）
+  // 一次性创建 ExamRecord（写入历史记录）
   try {
-    console.log('answers:', JSON.stringify(answers.value))
-    console.log('questions ids:', questions.value.map(q => q.id))
-    const answersPayload = questions.value.map(q => ({
-      question_id: q.id,
-      answer: answers.value[q.id] || ''
-    }))
-    console.log('submitPracticeAnswers payload:', JSON.stringify(answersPayload))
-    await submitPracticeAnswers(answersPayload)
+    await submitPracticeAnswers(
+      questions.value.map(q => ({
+        question_id: q.id,
+        answer: answers.value[q.id] || ''
+      }))
+    )
   } catch { /* 静默失败 */ }
 
-  // 添加错题：使用题目自带的 source_type（AI出题实际存入主库时 source_type='main'）
+  // 保存逐题做题记录 + 添加错题
+  const sourceType = route.query.source === 'ai' ? 'ai' : 'main'
   for (const q of questions.value) {
     const studentAnswer = String(answers.value[q.id] || '')
     const correctAnswer = String(q.answer || '')
     const isCorrect = isAnswerCorrect(studentAnswer, correctAnswer, q.question_type)
+    try {
+      await savePracticeRecord({
+        source_type: sourceType,
+        question_id: q.id,
+        question_content: q.content || '',
+        question_type: q.question_type || '',
+        student_answer: studentAnswer,
+        correct_answer: correctAnswer,
+        is_correct: isCorrect,
+        knowledge_point: q.knowledge_point || ''
+      })
+    } catch { /* 静默失败 */ }
     if (!isCorrect && !addingWrongIds.value.has(q.id)) {
       addingWrongIds.value.add(q.id)
-      const sourceType = q.source_type || (route.query.source === 'ai' ? 'ai' : 'main')
       try { await addWrongQuestion(q.id, sourceType, studentAnswer) } catch { /* 静默 */ }
     }
   }
@@ -441,6 +480,14 @@ function goBack() {
   router.push('/student/home')
 }
 
+function loadFromBank() {
+  router.push('/student/practice/bank')
+}
+
+function loadFromAI() {
+  router.push('/student/practice/ai')
+}
+
 async function loadPracticeQuestions() {
   loading.value = true
   error.value = ''
@@ -457,6 +504,7 @@ async function loadPracticeQuestions() {
         score.value = r.score
         correctCount.value = r.correctCount
         wrongCount.value = r.wrongCount
+        practiceSubmitted.value = true
         showResult.value = true
         showResultModal.value = false  // 不显示弹窗，直接看逐题解析
         loading.value = false
@@ -465,23 +513,14 @@ async function loadPracticeQuestions() {
     } catch { sessionStorage.removeItem(PRACTICE_RESULT_KEY) }
   }
 
-  console.log('PracticePage 挂载时 localStorage.aiQuestions:', localStorage.getItem('aiQuestions'))
-  console.log('PracticePage 挂载时 localStorage 所有键:', Object.keys(localStorage))
-
   const sourceQuery = route.query.source
 
   if (sourceQuery === 'ai') {
     try {
-      console.log('localStorage aiQuestions:', localStorage.getItem('aiQuestions'))
-      let data = localStorage.getItem('aiQuestions')
-      // localStorage 为空时，从路由 query 参数读取（兼容旧方式）
-      if (!data) {
-        data = route.query.aiQuestions
-        console.log('fallback to route.query.aiQuestions:', data)
-      }
+      const data = sessionStorage.getItem('aiQuestions')
       if (!data) { error.value = '未找到AI题目数据'; loading.value = false; return }
       questions.value = JSON.parse(data)
-      localStorage.removeItem('aiQuestions')
+      sessionStorage.removeItem('aiQuestions')
       currentIndex.value = 0
       practiceInfo.value.name = 'AI 智能出题练习'
     } catch {
@@ -561,29 +600,7 @@ function getMockQuestions() {
   ]
 }
 
-function resetPracticeState() {
-  loading.value = false
-  error.value = ''
-  practiceInfo.value = null
-  questions.value = []
-  answers.value = {}
-  currentIndex.value = 0
-  showSubmitModal.value = false
-  showResultModal.value = false
-  submitting.value = false
-  showResult.value = false
-  score.value = 0
-  correctCount.value = 0
-  wrongCount.value = 0
-  showAIModal.value = false
-  aiQuestion.value = null
-  addingWrongIds.value = new Set()
-  sessionStorage.removeItem(PRACTICE_RESULT_KEY)
-  // 注意：不要在此处移除 aiQuestions，因为它在 loadPracticeQuestions 中读取后再移除
-}
-
 onMounted(() => {
-  resetPracticeState()
   loadPracticeQuestions()
 })
 </script>
@@ -621,10 +638,76 @@ onMounted(() => {
   gap: 12px;
 }
 
+/* ===== 选题入口卡片 ===== */
+.practice-options {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  margin-top: 40px;
+  flex-wrap: wrap;
+}
+.option-card {
+  flex: 1;
+  min-width: 240px;
+  background: white;
+  border-radius: 20px;
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border: 1px solid #e8e8e8;
+  position: relative;
+}
+.option-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(102,126,234,0.15);
+  border-color: #667eea;
+}
+.option-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.option-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: #333;
+}
+.option-card p {
+  margin: 0;
+  color: #888;
+  font-size: 14px;
+}
+.arrow {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 20px;
+  color: #ccc;
+  transition: all 0.3s;
+}
+.option-card:hover .arrow {
+  color: #667eea;
+  transform: translateX(4px);
+}
+
 .practice-header-right {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.btn-submitted {
+  padding: 8px 20px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--hairline, #e3dbd0);
+  background: #e0e0e0;
+  color: #999;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: not-allowed;
+  pointer-events: none;
+  font-family: inherit;
 }
 
 /* ===== 题目导航 ===== */

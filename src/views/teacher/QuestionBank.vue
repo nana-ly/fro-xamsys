@@ -1,6 +1,5 @@
 <template>
   <div class="page-header">
-    <h2>题库管理</h2>
     <div class="header-buttons">
       <el-button type="success" icon="MagicStick" @click="showAIDialog">
         AI智能出题
@@ -713,7 +712,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: var(--ink, #333);
+  color: #333;
 }
 
 .header-buttons {

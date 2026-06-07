@@ -60,7 +60,7 @@ request.interceptors.response.use(
                     break
                 }
                 case 403:
-                    ElMessage.error('权限不足')
+                    ElMessage.error(extractError(data) || '权限不足')
                     break
                 case 500:
                     ElMessage.error('服务器错误')

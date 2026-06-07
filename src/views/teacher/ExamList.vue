@@ -1,7 +1,6 @@
 <template>
   <div class="exam-list">
     <div class="page-header">
-      <h2>试卷管理</h2>
       <el-button type="primary" icon="Plus" @click="openCreateDialog">
         创建试卷
       </el-button>
@@ -17,10 +16,10 @@
           <template #default="scope">{{ scope.row.duration }} 分钟</template>
         </el-table-column>
         <el-table-column label="开始时间" width="160">
-          <template #default="scope">{{ formatDate(scope.row.published_at || scope.row.created_at, 'YYYY-MM-DD HH:mm') || '未发布' }}</template>
+          <template #default="scope">{{ formatDate(scope.row.published_at, 'YYYY-MM-DD HH:mm') || '未发布' }}</template>
         </el-table-column>
         <el-table-column label="结束时间" width="160">
-          <template #default="scope">{{ calcEndTime(scope.row) || '-' }}</template>
+          <template #default="scope">{{ formatDate(scope.row.end_time, 'YYYY-MM-DD HH:mm') || calcEndTime(scope.row) || '-' }}</template>
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="scope">
@@ -75,8 +74,16 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="考试时间" prop="startTime">
-              <el-date-picker v-model="examForm.startTime" type="datetime" placeholder="开始时间" :disabled-date="disabledDate"
+            <el-form-item label="开始时间" prop="startTime">
+              <el-date-picker v-model="examForm.startTime" type="datetime" placeholder="选择开始时间" :disabled-date="disabledDate"
+                format="YYYY-MM-DD HH:mm" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="结束时间" prop="endTime">
+              <el-date-picker v-model="examForm.endTime" type="datetime" placeholder="选择截止时间" :disabled-date="disabledDate"
                 format="YYYY-MM-DD HH:mm" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" />
             </el-form-item>
           </el-col>
@@ -159,13 +166,21 @@
           <template #default="scope"><div v-html="scope.row.content"></div></template>
         </el-table-column>
         <el-table-column label="题型" width="100">
-          <template #default="scope"><el-tag>{{ getTypeName(scope.row.type) }}</el-tag></template>
+          <template #default="scope"><el-tag>{{ getTypeName(scope.row.question_type) }}</el-tag></template>
         </el-table-column>
         <el-table-column label="难度" width="100">
           <template #default="scope"><el-tag :type="getDifficultyColor(scope.row.difficulty)">{{ getDifficultyName(scope.row.difficulty) }}</el-tag></template>
         </el-table-column>
         <el-table-column prop="score" label="默认分值" width="100" />
       </el-table>
+      <el-pagination
+        v-model:current-page="bankPage.current"
+        :page-size="10"
+        :total="bankPage.total"
+        layout="total, prev, pager, next"
+        small
+        @current-change="fetchBankQuestions"
+        style="margin-top:12px;justify-content:center" />
       <template #footer>
         <el-button @click="selectDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="confirmSelection">确定（已选{{ tempSelection.length }}题）</el-button>
@@ -194,7 +209,7 @@
     <el-dialog v-model="previewDialogVisible" title="试卷预览" width="70%">
       <div class="preview-content">
         <h2 style="text-align:center">{{ examForm.title }}</h2>
-        <p style="text-align:center;color:var(--muted-soft, #999)">总分：{{ totalScore }}分 | 时长：{{ examForm.duration }}分钟</p>
+        <p style="text-align:center;color:#999">总分：{{ totalScore }}分 | 时长：{{ examForm.duration }}分钟</p>
         <el-divider />
         <div v-for="(q, idx) in selectedQuestions" :key="idx" class="preview-question">
           <div class="question-title">
@@ -217,7 +232,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getExamList, deleteExam, getQuestionList, getClassList, createExam, updateExam, getExamDetail, getExamQuestions, autoGenerateExam, publishPaper } from '@/api/teacher'
+import { getExamList, deleteExam, getQuestionList, getClassList, createExam, updateExam, getExamDetail, getExamQuestions, autoGenerateExam } from '@/api/teacher'
 import { formatDate } from '@/utils/common'
 
 const loading = ref(false)
@@ -242,7 +257,7 @@ const tempSelection = ref([])
 const filterForm = reactive({ type: '', difficulty: '' })
 const autoForm = reactive({ totalCount: 20, singleCount: 10, multipleCount: 5, judgeCount: 3, blankCount: 2, difficultyRatio: [30, 70] })
 
-const examForm = reactive({ title: '', description: '', duration: 60, startTime: '', classIds: [], passScore: 60, totalScore: 100 })
+const examForm = reactive({ title: '', description: '', duration: 60, startTime: '', endTime: '', classIds: [], passScore: 60, totalScore: 100 })
 const examRules = { title: [{ required: true, message: '请输入试卷标题', trigger: 'blur' }], duration: [{ required: true, message: '请设置考试时长', trigger: 'blur' }], classIds: [{ required: true, message: '请选择目标班级', trigger: 'change' }] }
 
 const totalScore = computed(() => selectedQuestions.value.reduce((sum, q) => sum + Number(q.score || 0), 0))
@@ -256,11 +271,20 @@ function calcEndTime(exam) {
 }
 function getStatusType(exam) {
   if (!exam.published_at) return 'info'
-  return Date.now() > new Date(exam.published_at).getTime() + (exam.duration || 0) * 60000 ? 'danger' : 'success'
+  const name = getStatusName(exam)
+  if (name === '未开始') return 'warning'
+  if (name === '已结束') return 'danger'
+  return 'success'
 }
 function getStatusName(exam) {
   if (!exam.published_at) return '未发布'
-  return Date.now() > new Date(exam.published_at).getTime() + (exam.duration || 0) * 60000 ? '已结束' : '进行中'
+  const now = Date.now()
+  const start = new Date(exam.published_at).getTime()
+  if (now < start) return '未开始'
+  const deadline = exam.end_time
+    ? new Date(exam.end_time).getTime()
+    : start + (exam.duration || 60) * 60000
+  return now > deadline ? '已结束' : '进行中'
 }
 
 async function fetchExamList() {
@@ -275,7 +299,7 @@ async function fetchExamList() {
 
 function openCreateDialog() {
   isEdit.value = false; editId.value = null
-  examForm.title = ''; examForm.duration = 60; examForm.startTime = ''; examForm.classIds = []; examForm.passScore = 60; examForm.totalScore = 100
+  examForm.title = ''; examForm.duration = 60; examForm.startTime = ''; examForm.endTime = ''; examForm.classIds = []; examForm.passScore = 60; examForm.totalScore = 100
   selectedQuestions.value = []
   examDialogVisible.value = true
 }
@@ -284,7 +308,8 @@ async function openEditDialog(row) {
   try {
     const [paper, questionsData] = await Promise.all([getExamDetail(row.id), getExamQuestions(row.id)])
     examForm.title = paper.name || ''; examForm.duration = paper.duration || 60
-    examForm.startTime = paper.published_at || ''; examForm.classIds = paper.target_class ? [paper.target_class] : []
+    examForm.startTime = paper.published_at || ''; examForm.endTime = paper.end_time || ''
+    examForm.classIds = paper.target_class ? [paper.target_class] : []
     examForm.passScore = paper.pass_score || 60; examForm.totalScore = paper.total_score || 100
     selectedQuestions.value = (Array.isArray(questionsData) ? questionsData : []).map(pq => ({
       id: pq.question_detail?.id ?? pq.question, content: pq.question_detail?.content ?? '',
@@ -312,16 +337,24 @@ async function fetchClassList() {
     const userInfo = JSON.parse(localStorage.getItem('teacher_userInfo') || localStorage.getItem('userInfo') || '{}')
     const res = await getClassList()
     if (userInfo.id) {
-      classList.value = ((res.results || res)).filter(cls => String(cls.teacher) === String(userInfo.id))
+      classList.value = ((res.results || res)).filter(cls => cls.teacher === userInfo.id)
     } else {
       classList.value = (res.results || res)
     }
   } catch { ElMessage.error('获取班级列表失败') }
 }
+const TYPE_MAP_BANK = { single: 'choice', multiple: 'multiple_choice', judge: 'true_false', blank: 'fill_blank', essay: 'essay' }
+const DIFF_MAP_BANK = { easy: 1, medium: 3, hard: 5 }
+const bankPage = reactive({ current: 1, size: 10, total: 0 })
+
 async function fetchBankQuestions() {
   try {
-    const res = await getQuestionList({ type: filterForm.type, difficulty: filterForm.difficulty, page_size: 100 })
-    bankQuestions.value = res.results
+    const params = { page: bankPage.current, page_size: 10 }
+    if (filterForm.type) params.question_type = TYPE_MAP_BANK[filterForm.type] || filterForm.type
+    if (filterForm.difficulty) params.difficulty = DIFF_MAP_BANK[filterForm.difficulty] || filterForm.difficulty
+    const res = await getQuestionList(params)
+    bankQuestions.value = res.results || []
+    bankPage.total = res.count || 0
   } catch { ElMessage.error('获取题库失败') }
 }
 function showSelectDialog() { selectDialogVisible.value = true; fetchBankQuestions() }
@@ -382,10 +415,9 @@ async function handlePublish() {
   submitLoading.value = true
   try {
     if (isEdit.value) {
-      await updateExam(editId.value, { name: examForm.title, duration: Number(examForm.duration) || 60, target_class: examForm.classIds[0], total_score: Number(examForm.totalScore) || 100 })
-      await publishPaper(editId.value)
+      await updateExam(editId.value, { name: examForm.title, duration: Number(examForm.duration) || 60, target_class: examForm.classIds[0], total_score: Number(examForm.totalScore) || 100, start_time: examForm.startTime, end_time: examForm.endTime })
     } else {
-      await createExam({ name: examForm.title, description: examForm.description, duration: Number(examForm.duration) || 60, start_time: examForm.startTime, target_class: examForm.classIds[0], pass_score: Number(examForm.passScore) || 60, total_score: Number(examForm.totalScore) || 100, questions: selectedQuestions.value.map(q => ({ question_id: q.id, score: Number(q.score) || 5 })) })
+      await createExam({ name: examForm.title, description: examForm.description, duration: Number(examForm.duration) || 60, start_time: examForm.startTime, end_time: examForm.endTime, target_class: examForm.classIds[0], pass_score: Number(examForm.passScore) || 60, total_score: Number(examForm.totalScore) || 100, questions: selectedQuestions.value.map(q => ({ question_id: q.id, score: Number(q.score) || 5 })) })
     }
     ElMessage.success('发布成功'); examDialogVisible.value = false; fetchExamList()
   } catch (e) { ElMessage.error(e.message || '操作失败') }

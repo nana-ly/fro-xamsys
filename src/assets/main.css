@@ -134,16 +134,6 @@
   box-shadow: 0 4px 15px rgba(217,119,87,0.3);
 }
 
-.btn-primary:disabled,
-.btn-primary[disabled] {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-  background: var(--hairline-strong, #ccc);
-  color: var(--muted, #999);
-  box-shadow: none;
-}
-
 .btn-success {
   background: #5db872;
   color: #fff;

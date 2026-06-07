@@ -1,9 +1,5 @@
 <template>
   <div class="create-exam">
-    <div class="page-header">
-      <h2>{{ isEdit ? '编辑试卷' : '智能组卷' }}</h2>
-    </div>
-
     <el-row :gutter="20">
       <!-- 左侧：试卷信息 -->
       <el-col :span="16">
@@ -191,7 +187,7 @@
       <!-- 筛选 -->
       <el-form :inline="true">
         <el-form-item label="题型">
-          <el-select v-model="filterForm.type" placeholder="全部" clearable>
+          <el-select v-model="filterForm.type" placeholder="全部" clearable style="width: 130px">
             <el-option label="单选题" value="single" />
             <el-option label="多选题" value="multiple" />
             <el-option label="判断题" value="judge" />
@@ -200,7 +196,7 @@
         </el-form-item>
 
         <el-form-item label="难度">
-          <el-select v-model="filterForm.difficulty" placeholder="全部" clearable>
+          <el-select v-model="filterForm.difficulty" placeholder="全部" clearable style="width: 130px">
             <el-option label="简单" value="easy" />
             <el-option label="中等" value="medium" />
             <el-option label="困难" value="hard" />
@@ -227,9 +223,9 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="type" label="题型" width="100">
+        <el-table-column prop="question_type" label="题型" width="100">
           <template #default="scope">
-            <el-tag>{{ getTypeName(scope.row.type) }}</el-tag>
+            <el-tag>{{ getTypeName(scope.row.question_type) }}</el-tag>
           </template>
         </el-table-column>
 
@@ -243,6 +239,14 @@
 
         <el-table-column prop="score" label="默认分值" width="100" />
       </el-table>
+      <el-pagination
+        v-model:current-page="bankPage.current"
+        :page-size="10"
+        :total="bankPage.total"
+        layout="total, prev, pager, next"
+        small
+        @current-change="fetchBankQuestions"
+        style="margin-top:12px;justify-content:center" />
 
       <template #footer>
         <el-button @click="selectDialogVisible = false">取消</el-button>
@@ -301,7 +305,7 @@
 
       <div class="preview-content">
         <h2 style="text-align: center">{{ examForm.title }}</h2>
-        <p style="text-align: center; color: var(--muted-soft, #999)">
+        <p style="text-align: center; color: #999">
           总分：{{ totalScore }}分 | 时长：{{ examForm.duration }}分钟 | 及格分：{{ examForm.passScore }}分
         </p>
         <el-divider />
@@ -434,24 +438,38 @@ const disabledDate = (time) => {
 // 获取班级列表
 const fetchClassList = async () => {
   try {
-    const userInfo = JSON.parse(localStorage.getItem('teacher_userInfo') || '{}')
+    // 兼容多种 localStorage key：auth/Login 使用 teacher_userInfo，teacher/Login 使用 userInfo
+    const userInfo = JSON.parse(
+      localStorage.getItem('teacher_userInfo') ||
+      localStorage.getItem('userInfo') ||
+      '{}'
+    )
     const res = await getClassList()
     const allClasses = res.results || res
-    classList.value = allClasses.filter(cls => cls.teacher === userInfo.id)
+    if (userInfo.id) {
+      classList.value = allClasses.filter(cls => cls.teacher === userInfo.id)
+    } else {
+      // 无法获取用户ID时显示所有班级
+      classList.value = allClasses
+    }
   } catch (error) {
     ElMessage.error('获取班级列表失败')
   }
 }
 
 // 获取题库题目
+const TYPE_MAP_BANK = { single: 'choice', multiple: 'multiple_choice', judge: 'true_false', blank: 'fill_blank', essay: 'essay' }
+const DIFF_MAP_BANK = { easy: 1, medium: 3, hard: 5 }
+const bankPage = reactive({ current: 1, size: 10, total: 0 })
+
 const fetchBankQuestions = async () => {
   try {
-    const res = await getQuestionList({
-      type: filterForm.type,
-      difficulty: filterForm.difficulty,
-      page_size: 100
-    })
-    bankQuestions.value = res.results
+    const params = { page: bankPage.current, page_size: 10 }
+    if (filterForm.type) params.question_type = TYPE_MAP_BANK[filterForm.type] || filterForm.type
+    if (filterForm.difficulty) params.difficulty = DIFF_MAP_BANK[filterForm.difficulty] || filterForm.difficulty
+    const res = await getQuestionList(params)
+    bankQuestions.value = res.results || []
+    bankPage.total = res.count || 0
   } catch (error) {
     ElMessage.error('获取题库失败')
   }
@@ -703,7 +721,7 @@ onMounted(async () => {
 
 .page-header h2 {
   margin: 0;
-  color: var(--ink, #333);
+  color: #333;
 }
 
 .stat-item {
@@ -713,7 +731,7 @@ onMounted(async () => {
 }
 
 .stat-item .label {
-  color: var(--muted, #666);
+  color: #666;
 }
 
 .stat-item .value {
@@ -724,7 +742,7 @@ onMounted(async () => {
 .stat-title {
   font-weight: bold;
   margin: 10px 0;
-  color: var(--ink, #333);
+  color: #333;
 }
 
 .preview-content {
@@ -735,7 +753,7 @@ onMounted(async () => {
 .preview-question {
   margin-bottom: 30px;
   padding: 15px;
-  background: var(--canvas, #f5f5f5);
+  background: #f5f5f5;
   border-radius: 5px;
 }
 

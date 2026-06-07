@@ -15,12 +15,14 @@ import VueECharts from 'vue-echarts'
 import './assets/main.css'
 
 // 忽略 ResizeObserver loop 警告
-window.addEventListener('error', (e) => {
-  if (e.message && e.message.includes('ResizeObserver loop')) e.stopImmediatePropagation()
-})
-window.addEventListener('unhandledrejection', (e) => {
-  if (e.reason?.message?.includes('ResizeObserver loop')) e.preventDefault()
-})
+const origError = window.onerror
+window.onerror = function(msg) {
+  if (typeof msg === 'string' && msg.includes('ResizeObserver')) return true
+  if (origError) return origError.apply(this, arguments)
+}
+window.addEventListener('error', e => {
+  if (e.message?.includes('ResizeObserver')) e.stopImmediatePropagation()
+}, true)
 
 const app = createApp(App)
 

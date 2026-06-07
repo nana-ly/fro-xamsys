@@ -174,11 +174,6 @@ import ParticlesBackground from '@/components/ParticlesBackground.vue'
 
 const isDark = ref(false)
 
-const toggleDark = () => {
-  isDark.value = !isDark.value
-  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
-}
-
 const isScrolled = ref(false)
 
 const onScroll = () => {
