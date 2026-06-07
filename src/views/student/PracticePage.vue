@@ -102,9 +102,9 @@
                 :class="[
                   'option-item',
                   {
-                    selected: selectedAnswer === key,
-                    'correct-answer': showResult && key === currentQuestion?.answer,
-                    'wrong-answer': showResult && selectedAnswer === key && key !== currentQuestion?.answer
+                    selected: isMultiType(currentQuestion.question_type) ? selectedAnswers.includes(key) : selectedAnswer === key,
+                    'correct-answer': showResult && isOptionCorrect(key, currentQuestion),
+                    'wrong-answer': showResult && isOptionWrong(key, currentQuestion)
                   }
                 ]"
               >
@@ -127,8 +127,8 @@
                 />
                 <span class="option-key">{{ key }}</span>
                 <span class="option-text">{{ opt }}</span>
-                <span v-if="showResult && key === currentQuestion.answer" class="check-mark">✓</span>
-                <span v-if="showResult && selectedAnswer === key && key !== currentQuestion.answer" class="x-mark">✗</span>
+                <span v-if="showResult && isOptionCorrect(key, currentQuestion)" class="check-mark">✓</span>
+                <span v-if="showResult && isOptionWrong(key, currentQuestion)" class="x-mark">✗</span>
               </label>
             </div>
 
@@ -243,9 +243,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getPracticeQuestions, addWrongQuestion, savePracticeRecord, submitPracticeAnswers } from '@/api/student'
+import { getPracticeQuestions, addWrongQuestion, savePracticeRecord, submitPracticeAnswers, getPracticeRecordQuestions, completePracticeRecord } from '@/api/student'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -268,6 +268,7 @@ const showAIModal = ref(false)
 const aiQuestion = ref(null)
 const addingWrongIds = ref(new Set())
 const practiceSubmitted = ref(false)
+const incompleteRecordId = ref(null)  // 未完成练习的记录ID（恢复用）
 
 const currentQuestion = computed(() => questions.value[currentIndex.value] || null)
 
@@ -321,8 +322,32 @@ function isChoiceType(type) {
   return type === 'choice' || type === 'multiple' || type === 'multiple_choice'
 }
 
+function isMultiType(type) {
+  return type === 'multiple' || type === 'multiple_choice'
+}
+
 function isTextType(type) {
   return type === 'fill_blank' || type === 'essay'
+}
+
+// 判断某个选项 key 是否是正确答案（适配单选和多选）
+function isOptionCorrect(key, question) {
+  if (!question || !question.answer) return false
+  if (isMultiType(question.question_type)) {
+    return String(question.answer).split(',').map(s => s.trim()).includes(key)
+  }
+  return key === question.answer
+}
+
+// 判断某个选项 key 是否是用户选错的答案（用户选了但非正确答案）
+function isOptionWrong(key, question) {
+  if (!question || !question.answer) return false
+  if (isMultiType(question.question_type)) {
+    const studentAnswers = selectedAnswers.value
+    const correctAnswers = String(question.answer).split(',').map(s => s.trim())
+    return studentAnswers.includes(key) && !correctAnswers.includes(key)
+  }
+  return selectedAnswer.value === key && key !== question.answer
 }
 
 function typeLabel(type) {
@@ -335,6 +360,60 @@ function typeLabel(type) {
     essay: '简答题'
   }
   return map[type] || type
+}
+
+// ========== 答案标准化（确保 answer 与选项 key 格式一致，使正确/错误框选生效）==========
+function normalizeQuestionAnswers() {
+  questions.value = questions.value.map(q => {
+    if (!q.question_type) return q
+    // 判断题：统一为 '正确' / '错误'
+    if (q.question_type === 'true_false' || q.question_type === 'judge') {
+      const ans = String(q.answer || '').trim()
+      const trueVals = ['A', '正确', 'true', 'True', '对', '是', '1']
+      const falseVals = ['B', '错误', 'false', 'False', '错', '否', '0']
+      if (trueVals.includes(ans)) return { ...q, answer: '正确' }
+      if (falseVals.includes(ans)) return { ...q, answer: '错误' }
+      return q
+    }
+    // 选择题：确保 answer 与 parsedOptions 的 key 一致
+    if (q.question_type === 'choice' || q.question_type === 'multiple_choice' || q.question_type === 'multiple') {
+      const opts = parseOptionsObj(q.options)
+      const keys = Object.keys(opts)
+      if (keys.length === 0) return q
+      const ans = String(q.answer || '').trim()
+      if (!ans) return q
+
+      // 统一处理：将 answer 按逗号拆分，逐个标准化，再拼接
+      const normalizeSingleKey = (v) => {
+        const sv = v.trim()
+        if (!sv) return sv
+        if (keys.includes(sv)) return sv
+        const svNoDot = sv.replace(/\.$/, '')
+        if (keys.includes(svNoDot)) return svNoDot
+        const matched = keys.find(k => k.toUpperCase() === sv.toUpperCase() || k.toUpperCase().replace(/\.$/, '') === sv.toUpperCase())
+        if (matched) return matched
+        if (/^\d+$/.test(sv)) {
+          const idx = parseInt(sv) - 1
+          if (idx >= 0 && idx < keys.length) return keys[idx]
+        }
+        return sv
+      }
+
+      const parts = ans.split(',').map(normalizeSingleKey).filter(Boolean)
+      if (parts.length === 0) return q
+      const normalizedAnswer = parts.join(',')
+      if (normalizedAnswer !== ans) {
+        return { ...q, answer: normalizedAnswer }
+      }
+    }
+    return q
+  })
+}
+
+function parseOptionsObj(options) {
+  if (!options) return {}
+  if (typeof options === 'object') return options
+  try { return JSON.parse(options) } catch { return {} }
 }
 
 // ========== 答案比较 ==========
@@ -394,7 +473,9 @@ function submitPractice() {
   showSubmitModal.value = true
 }
 
+
 const PRACTICE_RESULT_KEY = 'practice_result'
+
 
 async function confirmSubmit() {
   showSubmitModal.value = false
@@ -415,14 +496,25 @@ async function confirmSubmit() {
     questions: questions.value
   }))
 
-  // 一次性创建 ExamRecord（写入历史记录）
+  // 一次性创建/更新 ExamRecord（写入历史记录）
   try {
-    await submitPracticeAnswers(
-      questions.value.map(q => ({
-        question_id: q.id,
-        answer: answers.value[q.id] || ''
-      }))
-    )
+    if (incompleteRecordId.value) {
+      // 更新已有的未完成记录为已完成
+      await completePracticeRecord(
+        incompleteRecordId.value,
+        questions.value.map(q => ({
+          question_id: q.id,
+          answer: answers.value[q.id] || ''
+        }))
+      )
+    } else {
+      await submitPracticeAnswers(
+        questions.value.map(q => ({
+          question_id: q.id,
+          answer: answers.value[q.id] || ''
+        }))
+      )
+    }
   } catch { /* 静默失败 */ }
 
   // 保存逐题做题记录 + 添加错题
@@ -507,10 +599,31 @@ async function loadPracticeQuestions() {
         practiceSubmitted.value = true
         showResult.value = true
         showResultModal.value = false  // 不显示弹窗，直接看逐题解析
+        normalizeQuestionAnswers()     // 标准化答案格式
         loading.value = false
         return
       }
     } catch { sessionStorage.removeItem(PRACTICE_RESULT_KEY) }
+  }
+
+  // 恢复未完成的练习（从历史记录点击进入）
+  const recordId = route.query.recordId
+  if (recordId) {
+    try {
+      const res = await getPracticeRecordQuestions(recordId)
+      const data = res.data || res
+      questions.value = data.questions || []
+      answers.value = data.answers || {}
+      incompleteRecordId.value = parseInt(recordId)
+      practiceInfo.value.name = data.paper_name || '继续练习'
+      normalizeQuestionAnswers()
+      loading.value = false
+      return
+    } catch {
+      error.value = '加载练习记录失败'
+      loading.value = false
+      return
+    }
   }
 
   const sourceQuery = route.query.source
@@ -546,6 +659,9 @@ async function loadPracticeQuestions() {
   if (questions.value.length > 0 && !sourceQuery) {
     practiceInfo.value.name = '随堂练习'
   }
+
+  // 标准化答案格式，确保与选项 key 一致（使正确/错误框选生效）
+  normalizeQuestionAnswers()
 
   loading.value = false
 }
@@ -602,6 +718,44 @@ function getMockQuestions() {
 
 onMounted(() => {
   loadPracticeQuestions()
+})
+
+// 离开页面时自动保存未完成的练习
+onBeforeUnmount(() => {
+  // 已提交或没有题目或没有答过题，不保存
+  if (practiceSubmitted.value || questions.value.length === 0) return
+  const hasAnyAnswer = Object.values(answers.value).some(v => v !== undefined && v !== '')
+  if (!hasAnyAnswer) return
+
+  // 异步保存到后端（不阻塞页面离开）
+  const payload = {
+    paper_name: practiceInfo.value?.name || '练习模式',
+    questions: questions.value.map(q => ({
+      id: q.id,
+      content: q.content || '',
+      question_type: q.question_type || '',
+      options: q.options || '',
+      answer: q.answer || '',
+      knowledge_point: q.knowledge_point || ''
+    })),
+    answers: Object.entries(answers.value).reduce((acc, [qid, ans]) => {
+      acc[qid] = String(ans || '')
+      return acc
+    }, {}),
+    record_id: incompleteRecordId.value || undefined,
+    source_type: route.query.source === 'ai' ? 'ai' : 'main'
+  }
+  // 使用 fetch + keepalive 确保页面关闭时也能发出请求
+  const token = sessionStorage.getItem('student_token') || localStorage.getItem('student_token')
+  fetch('/api/student/practice/incomplete/', {
+    method: 'POST',
+    keepalive: true,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && token !== 'true' ? { 'Authorization': `Token ${token}` } : {})
+    },
+    body: JSON.stringify(payload)
+  }).catch(() => {})
 })
 </script>
 

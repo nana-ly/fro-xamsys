@@ -190,7 +190,6 @@
     <!-- 智能组卷弹窗 -->
     <el-dialog v-model="autoDialogVisible" title="智能组卷" width="500px">
       <el-form :model="autoForm" label-width="120px">
-        <el-form-item label="总题数"><el-input-number v-model="autoForm.totalCount" :min="5" :max="100" /></el-form-item>
         <el-form-item label="单选题数量"><el-input-number v-model="autoForm.singleCount" :min="0" /></el-form-item>
         <el-form-item label="多选题数量"><el-input-number v-model="autoForm.multipleCount" :min="0" /></el-form-item>
         <el-form-item label="判断题数量"><el-input-number v-model="autoForm.judgeCount" :min="0" /></el-form-item>
@@ -255,7 +254,7 @@ const selectedQuestions = ref([])
 const bankQuestions = ref([])
 const tempSelection = ref([])
 const filterForm = reactive({ type: '', difficulty: '' })
-const autoForm = reactive({ totalCount: 20, singleCount: 10, multipleCount: 5, judgeCount: 3, blankCount: 2, difficultyRatio: [30, 70] })
+const autoForm = reactive({ singleCount: 10, multipleCount: 5, judgeCount: 3, blankCount: 2, difficultyRatio: [30, 70] })
 
 const examForm = reactive({ title: '', description: '', duration: 60, startTime: '', endTime: '', classIds: [], passScore: 60, totalScore: 100 })
 const examRules = { title: [{ required: true, message: '请输入试卷标题', trigger: 'blur' }], duration: [{ required: true, message: '请设置考试时长', trigger: 'blur' }], classIds: [{ required: true, message: '请选择目标班级', trigger: 'change' }] }

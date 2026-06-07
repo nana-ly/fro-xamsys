@@ -437,7 +437,7 @@ const fetchScoreData = async () => {
     chartData.trend = statsRes.trend || []
 
   } catch (error) {
-    ElMessage.error('获取成绩数据失败')
+    console.error('获取成绩数据失败:', error)
   } finally {
     loading.value = false
   }

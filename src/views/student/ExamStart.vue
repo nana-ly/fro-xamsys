@@ -70,6 +70,20 @@
               </div>
             </div>
 
+            <!-- 防作弊 -->
+            <div class="rule-item">
+              <div class="rule-icon rule-icon-anticheat">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <div class="rule-content">
+                <h4>防作弊保护</h4>
+                <p>考试期间系统已禁用复制、粘贴、右键菜单等操作。请勿尝试使用任何作弊手段，诚信应考。</p>
+              </div>
+            </div>
+
             <!-- 切屏监控 -->
             <div class="rule-item">
               <div class="rule-icon rule-icon-warn">
@@ -343,6 +357,11 @@ onMounted(async () => {
 .rule-icon-warn {
   background: linear-gradient(135deg, rgba(231, 76, 60, 0.12), rgba(192, 57, 43, 0.08));
   color: #e74c3c;
+}
+
+.rule-icon-anticheat {
+  background: linear-gradient(135deg, rgba(217, 119, 87, 0.12), rgba(200, 100, 60, 0.08));
+  color: #d97757;
 }
 
 .rule-icon-leave {

@@ -209,6 +209,21 @@ export function submitPracticeAnswers(answers) {
   return api.post('/student/practice/', { answers })
 }
 
+// 保存未完成的练习进度（返回 record_id）
+export function saveIncompletePractice(data) {
+  return api.post('/student/practice/incomplete/', data)
+}
+
+// 更新练习记录为已完成（提交）
+export function completePracticeRecord(recordId, answers) {
+  return api.post(`/student/practice/records/${recordId}/complete/`, { answers })
+}
+
+// 获取练习记录的题目详情（用于恢复未完成答题）
+export function getPracticeRecordQuestions(recordId) {
+  return api.get(`/student/practice/records/${recordId}/questions/`)
+}
+
 // 保存单题做题记录
 export function savePracticeRecord(data) {
   return api.post('/student/practice/records/', data)
@@ -271,6 +286,11 @@ export function getHistoryRecords(params = {}) {
 // 获取某次做题记录的题目详情
 export function getRecordDetail(recordId) {
   return api.get(`/student/practice/records/${recordId}/detail/`)
+}
+
+// 删除练习/考试历史记录
+export function deleteHistoryRecord(recordId) {
+  return api.delete(`/student/practice/records/${recordId}/`)
 }
 
 // ===================== 个人资料相关 =====================

@@ -95,18 +95,24 @@
           <div class="wrong-card-body">
             <h4 class="question-content">{{ item.content }}</h4>
             
-            <!-- 选项 -->
-            <div v-if="item.options && parsedOptions(item.options)" class="options-display">
-              <span 
-                v-for="(opt, key) in parsedOptions(item.options)" 
+            <!-- 选项（与考试/练习一致的正确/错误框选样式） -->
+            <div v-if="item.options && parsedOptions(item.options)" class="options-list">
+              <label
+                v-for="(opt, key) in parsedOptions(item.options)"
                 :key="key"
-                :class="['option-tag', {
-                  'correct-option': key === item.answer,
-                  'wrong-option': key === item.student_answer && key !== item.answer
-                }]"
+                :class="[
+                  'option-item',
+                  {
+                    'correct-answer': isOptionCorrectWB(key, item),
+                    'wrong-answer': isOptionWrongWB(key, item)
+                  }
+                ]"
               >
-                {{ key }}. {{ opt }}
-              </span>
+                <span class="option-key">{{ key }}</span>
+                <span class="option-text">{{ opt }}</span>
+                <span v-if="isOptionCorrectWB(key, item)" class="check-mark">✓</span>
+                <span v-if="isOptionWrongWB(key, item)" class="x-mark">✗</span>
+              </label>
             </div>
 
             <!-- 答案对比 -->
@@ -275,6 +281,30 @@ const addForm = ref({
   analysis: ''
 })
 
+function isMultiTypeWB(type) {
+  return type === 'multiple' || type === 'multiple_choice'
+}
+
+// 判断某个选项 key 是否是该错题的正确答案
+function isOptionCorrectWB(key, item) {
+  if (!item || !item.answer) return false
+  if (isMultiTypeWB(item.question_type)) {
+    return String(item.answer).split(',').map(s => s.trim()).includes(key)
+  }
+  return key === item.answer
+}
+
+// 判断某个选项 key 是否是该错题中用户选错的答案
+function isOptionWrongWB(key, item) {
+  if (!item || !item.answer) return false
+  if (isMultiTypeWB(item.question_type)) {
+    const studentAnswers = String(item.student_answer || '').split(',').map(s => s.trim()).filter(Boolean)
+    const correctAnswers = String(item.answer).split(',').map(s => s.trim())
+    return studentAnswers.includes(key) && !correctAnswers.includes(key)
+  }
+  return key === item.student_answer && key !== item.answer
+}
+
 function typeLabel(type) {
   const map = {
     choice: '单选',
@@ -296,6 +326,59 @@ function parsedOptions(options) {
   }
 }
 
+// 标准化错题数据中的 answer / student_answer，使其与选项 key 格式一致
+function normalizeWrongItem(item) {
+  if (!item.question_type) return item
+  const qt = item.question_type
+  // 判断题：统一 answer 和 student_answer
+  if (qt === 'true_false' || qt === 'judge') {
+    const norm = (v) => {
+      const s = String(v || '').trim()
+      const trueVals = ['A', '正确', 'true', 'True', '对', '是', '1']
+      const falseVals = ['B', '错误', 'false', 'False', '错', '否', '0']
+      if (trueVals.includes(s)) return '正确'
+      if (falseVals.includes(s)) return '错误'
+      return s
+    }
+    return { ...item, answer: norm(item.answer), student_answer: norm(item.student_answer) }
+  }
+  // 选择题：确保与选项 key 匹配
+  if (qt === 'choice' || qt === 'multiple_choice' || qt === 'multiple') {
+    const opts = parsedOptions(item.options) || {}
+    const keys = Object.keys(opts)
+    if (keys.length === 0) return item
+
+    const normalizeSingleKey = (v) => {
+      const sv = String(v).trim()
+      if (!sv) return sv
+      if (keys.includes(sv)) return sv
+      const svNoDot = sv.replace(/\.$/, '')
+      if (keys.includes(svNoDot)) return svNoDot
+      const matched = keys.find(k => k.toUpperCase() === sv.toUpperCase() || k.toUpperCase().replace(/\.$/, '') === sv.toUpperCase())
+      if (matched) return matched
+      if (/^\d+$/.test(sv)) {
+        const idx = parseInt(sv) - 1
+        if (idx >= 0 && idx < keys.length) return keys[idx]
+      }
+      return sv
+    }
+
+    // 统一处理：按逗号拆分，逐个标准化，再拼接
+    const normalizeField = (val) => {
+      if (!val) return val
+      const parts = String(val).split(',').map(normalizeSingleKey).filter(Boolean)
+      return parts.join(',')
+    }
+
+    return {
+      ...item,
+      answer: normalizeField(item.answer),
+      student_answer: normalizeField(item.student_answer)
+    }
+  }
+  return item
+}
+
 async function loadWrongBook() {
   loading.value = true
   try {
@@ -311,7 +394,7 @@ async function loadWrongBook() {
     const data = res.data || {}
     wrongList.value = []
     await nextTick()
-    wrongList.value = data.results || []
+    wrongList.value = (data.results || []).map(item => normalizeWrongItem(item))
     totalItems.value = data.total || 0
     filteredMastered.value = data.mastered_count ?? 0
     filteredUnmastered.value = data.unmastered_count ?? 0
@@ -605,36 +688,68 @@ onMounted(() => {
   color: var(--ink, #2a2a2a);
 }
 
-.options-display {
+/* 选项框选样式（与考试/练习一致） */
+.options-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
-.option-tag {
-  padding: 2px 8px;
-  border: 1px solid var(--hairline, #e3dbd0);
-  border-radius: var(--radius-sm, 6px);
-  font-size: 13px;
-  color: var(--muted, #6b655c);
+.option-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1.5px solid var(--hairline, #e3dbd0);
+  border-radius: var(--radius, 10px);
+  cursor: default;
+  transition: border-color 0.2s, background 0.2s;
+  font-size: 14px;
 }
 
-.option-tag.correct-option {
+.option-item.correct-answer {
   border-color: #5db872;
   background: rgba(93,184,114,0.08);
-  color: #3a9d5e;
 }
 
-.option-tag.wrong-option {
+.option-item.wrong-answer {
   border-color: #c64545;
   background: rgba(198,69,69,0.06);
-  color: #b33a3a;
 }
+
+.option-key {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  background: var(--hairline, #e3dbd0);
+  border-radius: 50%;
+  margin-right: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #6b655c);
+  flex-shrink: 0;
+}
+
+.option-item.correct-answer .option-key {
+  background: #5db872;
+  color: #fff;
+}
+
+.option-item.wrong-answer .option-key {
+  background: #c64545;
+  color: #fff;
+}
+
+.option-text { flex: 1; font-size: 14px; color: var(--ink, #2a2a2a); }
+.check-mark { color: #5db872; font-weight: 700; margin-left: 8px; }
+.x-mark { color: #c64545; font-weight: 700; margin-left: 8px; }
 
 .answer-compare {
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 12px;
   padding: 10px 14px;
   background: var(--primary-bg, rgba(217,119,87,0.04));
@@ -831,7 +946,6 @@ onMounted(() => {
 @media (max-width: 768px) {
   .page-header { flex-direction: column; gap: 10px; align-items: flex-start; }
   .filter-bar { flex-direction: column; gap: 10px; }
-  .answer-compare { flex-direction: column; gap: 8px; }
   .float-add-btn { bottom: 70px; right: 16px; }
 }
 

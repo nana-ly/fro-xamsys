@@ -170,18 +170,22 @@
 
         <div class="exam-grid" v-if="!examLoading && examList.length > 0">
           <div v-for="exam in examList" :key="exam.id" class="exam-card card">
-            <div class="exam-card-header">
-              <h4>{{ exam.name }}</h4>
-              <span class="exam-badge">{{ exam.question_count || 0 }}题</span>
+            <div class="exam-card-top">
+              <h3 class="exam-card-title">{{ exam.name }}</h3>
+              <span class="exam-badge">{{ exam.question_count || 0 }}题 · {{ exam.total_score || 100 }}分</span>
             </div>
             <div class="exam-card-body">
-              <div class="exam-info">
-                <span>{{ exam.duration || 60 }}分钟</span>
-                <span>{{ exam.total_score || 100 }}分</span>
+              <div class="exam-detail-row">
+                <span class="exam-detail-label">开始时间</span>
+                <span class="exam-detail-value">{{ formatDateTime(exam.published_at) }}</span>
               </div>
-              <div class="exam-info">
-                <span>{{ exam.creator_name || '未知教师' }}</span>
-                <span>{{ formatDate(exam.published_at) }}</span>
+              <div class="exam-detail-row">
+                <span class="exam-detail-label">截止时间</span>
+                <span class="exam-detail-value">{{ formatExamEndTime(exam) }}</span>
+              </div>
+              <div class="exam-detail-row">
+                <span class="exam-detail-label">发布教师</span>
+                <span class="exam-detail-value">{{ exam.creator_name || '未知教师' }}</span>
               </div>
             </div>
             <div class="exam-card-footer">
@@ -519,17 +523,42 @@ async function loadRecentRecords() {
   }
 }
 
-function formatDate(dateStr) {
+function formatDateTime(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function formatExamEndTime(exam) {
+  if (!exam.end_time) return '未设置'
+  return formatDateTime(exam.end_time)
 }
 
 async function loadExamList() {
   examLoading.value = true
   try {
     const res = await getExamList()
-    examList.value = res.data || []
+    let list = res.data || []
+    // 过滤掉已完成的试卷：
+    // 1. 后端返回了 status/is_submitted 字段
+    // 2. 本地 localStorage 中已有该考试的成绩记录
+    list = list.filter(exam => {
+      // 如果后端标记了已完成/已提交，直接过滤
+      if (exam.status === 'completed' || exam.status === 'submitted' || exam.is_submitted || exam.has_submitted) {
+        return false
+      }
+      // 兜底：检查 localStorage 中是否有该考试的成绩记录
+      const resultKey = 'exam_result_' + exam.id
+      const savedResult = localStorage.getItem(resultKey)
+      if (savedResult) {
+        try {
+          const r = JSON.parse(savedResult)
+          if (r.showResult) return false
+        } catch { /* ignore */ }
+      }
+      return true
+    })
+    examList.value = list
   } catch (error) {
     console.error('获取试卷列表失败:', error)
     examList.value = []
@@ -649,9 +678,16 @@ function loadAllData() {
   loadRecentRecords()
 }
 
+// 学习时长定时刷新（每分钟一次）
+let statsTimer = null
+
 onMounted(() => {
   loadAllData()
   startSession().catch(err => console.error('开始学习时段失败:', err))
+  // 每分钟自动刷新今日统计（学习时长等）
+  statsTimer = setInterval(() => {
+    loadStatsData()
+  }, 60000)
 })
 
 onActivated(() => {
@@ -676,6 +712,7 @@ onUnmounted(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   if (monthChart) monthChart.dispose()
   if (knowledgeChart) knowledgeChart.dispose()
+  if (statsTimer) clearInterval(statsTimer)
   endSession().catch(err => console.error('结束学习时段失败:', err))
 })
 </script>
@@ -1104,49 +1141,67 @@ onUnmounted(() => {
 
 .exam-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   margin-top: 12px;
 }
 
 .exam-card {
-  padding: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
 }
 
-.exam-card-header {
+.exam-card-top {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  gap: 12px;
 }
 
-.exam-card-header h4 {
+.exam-card-title {
   margin: 0;
-  font-size: 1em;
-  font-weight: 600;
+  font-size: 1.15em;
+  font-weight: 700;
   color: var(--ink, #2a2a2a);
+  line-height: 1.4;
+  flex: 1;
 }
 
 .exam-badge {
-  padding: 2px 10px;
+  padding: 3px 12px;
   background: var(--primary-bg, rgba(217,119,87,0.12));
   color: var(--primary, #d97757);
   border-radius: var(--radius-full, 9999px);
   font-size: 12px;
   font-weight: 500;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .exam-card-body {
   margin-bottom: 16px;
+  flex: 1;
 }
 
-.exam-info {
+.exam-detail-row {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
+  padding: 5px 0;
   font-size: 13px;
-  color: var(--muted, #6b655c);
-  margin-bottom: 4px;
+  line-height: 1.6;
+}
+
+.exam-detail-label {
+  color: var(--muted, #9e9789);
+  flex-shrink: 0;
+}
+
+.exam-detail-value {
+  color: var(--ink, #2a2a2a);
+  text-align: right;
 }
 
 /* ===== 弹窗 ===== */

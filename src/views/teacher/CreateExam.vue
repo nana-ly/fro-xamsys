@@ -262,10 +262,9 @@
         title="智能组卷"
         width="500px">
 
+
       <el-form :model="autoForm" label-width="120px">
-        <el-form-item label="总题数">
-          <el-input-number v-model="autoForm.totalCount" :min="5" :max="100" />
-        </el-form-item>
+
 
         <el-form-item label="单选题数量">
           <el-input-number v-model="autoForm.singleCount" :min="0" />
@@ -399,7 +398,6 @@ const filterForm = reactive({
 
 // 智能组卷表单
 const autoForm = reactive({
-  totalCount: 20,
   singleCount: 10,
   multipleCount: 5,
   judgeCount: 3,

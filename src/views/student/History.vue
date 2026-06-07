@@ -184,7 +184,7 @@
 
         <!-- 列表 -->
         <div v-else class="record-list">
-          <div v-for="record in records" :key="`${record.type}-${record.id}`" class="record-card card" @click="openReview(record)">
+          <div v-for="record in records" :key="`${record.type}-${record.id}`" class="record-card card" @click="openReview(record)" @contextmenu.prevent="onRightClick(record)">
             <div class="record-header">
               <span class="record-type" :class="record.type">
                 {{ record.record_type }}
@@ -202,7 +202,8 @@
                 </div>
                 <div class="stat-item">
                   <span class="stat-label">得分</span>
-                  <span class="stat-value score" :class="getScoreClass(record.score)">
+                  <span v-if="record.is_completed === false" class="stat-value score incomplete">未完成</span>
+                  <span v-else class="stat-value score" :class="getScoreClass(record.score)">
                     {{ record.score }}分
                   </span>
                 </div>
@@ -232,12 +233,27 @@
         </div>
       </div>
     </div>
+
+    <!-- 删除确认弹窗 -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="cancelDelete">
+      <div class="delete-modal">
+        <h3>确认删除</h3>
+        <p>确定要删除这条练习记录吗？</p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="cancelDelete">取消</button>
+          <button class="btn btn-danger" @click="confirmDelete">删除</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getHistoryRecords, getRecordDetail } from '@/api/student'
+import { useRouter } from 'vue-router'
+import { getHistoryRecords, getRecordDetail, deleteHistoryRecord } from '@/api/student'
+
+const router = useRouter()
 
 const currentTab = ref('exam')
 const records = ref([])
@@ -251,6 +267,10 @@ const reviewMode = ref(false)
 const currentRecord = ref(null)
 const reviewQuestions = ref([])
 const currentReviewIndex = ref(0)
+
+// 删除相关
+const showDeleteModal = ref(false)
+const deleteTargetRecord = ref(null)
 
 const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
 
@@ -301,6 +321,13 @@ async function loadRecords(page = 1) {
 }
 
 async function openReview(record) {
+  // 未完成的练习 → 跳转到 PracticePage 继续答题
+  if (record.is_completed === false) {
+    router.push(`/student/practice?recordId=${record.id}`)
+    return
+  }
+
+  // 已完成的 → 查看回顾
   currentRecord.value = record
   reviewQuestions.value = []
   reviewMode.value = true
@@ -309,7 +336,7 @@ async function openReview(record) {
 
   try {
     const res = await getRecordDetail(record.id)
-    reviewQuestions.value = res.data.questions || []
+    reviewQuestions.value = (res.data.questions || []).map(normalizeReviewItem)
     // 更新当前记录信息（可能包含更准确的字段）
     if (res.data.paper_name) currentRecord.value.paper_name = res.data.paper_name
     if (res.data.score != null) currentRecord.value.score = res.data.score
@@ -327,6 +354,34 @@ function closeReview() {
   currentRecord.value = null
   reviewQuestions.value = []
   currentReviewIndex.value = 0
+}
+
+// ===== 删除记录 =====
+function onRightClick(record) {
+  deleteTargetRecord.value = record
+  showDeleteModal.value = true
+}
+
+function cancelDelete() {
+  showDeleteModal.value = false
+  deleteTargetRecord.value = null
+}
+
+async function confirmDelete() {
+  const record = deleteTargetRecord.value
+  if (!record) return
+
+  try {
+    await deleteHistoryRecord(record.id)
+    records.value = records.value.filter(r => r.id !== record.id)
+    total.value = Math.max(0, total.value - 1)
+  } catch (error) {
+    console.error('删除记录失败:', error)
+    alert('删除失败，请稍后重试')
+  } finally {
+    showDeleteModal.value = false
+    deleteTargetRecord.value = null
+  }
 }
 
 function prevReviewQuestion() {
@@ -370,6 +425,54 @@ function normalizeTrueFalse(value) {
 function isInMultiAnswer(key, answerStr) {
   if (!answerStr) return false
   return String(answerStr).split(',').map(s => s.trim()).includes(key)
+}
+
+// 标准化历史回顾题目中的 correct_answer / student_answer，使其与选项 key 格式一致
+function normalizeReviewItem(item) {
+  if (!item.question_type) return item
+  const qt = item.question_type
+  if (qt === 'true_false' || qt === 'judge') {
+    // 判断题：统一为后端返回的格式（normalizeTrueFalse 在模板中已做转换，这里确保原始数据一致）
+    return item
+  }
+  if (qt === 'choice' || qt === 'multiple_choice' || qt === 'multiple') {
+    let opts = {}
+    if (item.options) {
+      if (typeof item.options === 'object') { opts = item.options }
+      else { try { opts = JSON.parse(item.options) } catch { opts = {} } }
+    }
+    const keys = Object.keys(opts)
+    if (keys.length === 0) return item
+
+    const normalizeSingleKey = (v) => {
+      const sv = String(v).trim()
+      if (!sv) return sv
+      if (keys.includes(sv)) return sv
+      const svNoDot = sv.replace(/\.$/, '')
+      if (keys.includes(svNoDot)) return svNoDot
+      const matched = keys.find(k => k.toUpperCase() === sv.toUpperCase() || k.toUpperCase().replace(/\.$/, '') === sv.toUpperCase())
+      if (matched) return matched
+      if (/^\d+$/.test(sv)) {
+        const idx = parseInt(sv) - 1
+        if (idx >= 0 && idx < keys.length) return keys[idx]
+      }
+      return sv
+    }
+
+    // 统一处理：按逗号拆分，逐个标准化，再拼接
+    const normalizeField = (val) => {
+      if (!val) return val
+      const parts = String(val).split(',').map(normalizeSingleKey).filter(Boolean)
+      return parts.join(',')
+    }
+
+    return {
+      ...item,
+      correct_answer: normalizeField(item.correct_answer),
+      student_answer: normalizeField(item.student_answer)
+    }
+  }
+  return item
 }
 
 onMounted(() => {
@@ -557,6 +660,7 @@ onMounted(() => {
 .record-stats .stat-value.score.high { color: #5db872; }
 .record-stats .stat-value.score.medium { color: #d4a017; }
 .record-stats .stat-value.score.low { color: #c64545; }
+.record-stats .stat-value.score.incomplete { color: #6b8ab7; font-style: italic; }
 
 .record-arrow {
   position: absolute;
@@ -790,5 +894,62 @@ onMounted(() => {
     align-items: flex-start;
     gap: 8px;
   }
+}
+
+/* ===== 删除确认弹窗 ===== */
+.delete-modal {
+  width: 350px;
+  padding: 24px 20px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 12px;
+  border: 1px solid var(--hairline, #e3dbd0);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.delete-modal h3 {
+  margin: 0 0 10px;
+  font-size: 1.1em;
+  color: var(--ink, #2a2a2a);
+}
+
+.delete-modal p {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--muted, #6b655c);
+}
+
+.delete-modal .modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-danger {
+  background: #c64545;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  padding: 8px 20px;
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.btn-danger:hover {
+  background: #b33a3a;
 }
 </style>

@@ -90,9 +90,9 @@
                 :class="[
                   'option-item',
                   { 
-                    selected: selectedAnswer === key,
-                    'correct-answer': showResult && key === currentQuestion.answer,
-                    'wrong-answer': showResult && selectedAnswer === key && key !== currentQuestion.answer
+                    selected: isMultiType(currentQuestion.question_type) ? selectedAnswers.includes(key) : selectedAnswer === key,
+                    'correct-answer': showResult && isOptionCorrect(key, currentQuestion),
+                    'wrong-answer': showResult && isOptionWrong(key, currentQuestion)
                   }
                 ]"
               >
@@ -115,8 +115,8 @@
                 />
                 <span class="option-key">{{ key }}</span>
                 <span class="option-text">{{ opt }}</span>
-                <span v-if="showResult && key === currentQuestion.answer" class="check-mark">✓</span>
-                <span v-if="showResult && selectedAnswer === key && key !== currentQuestion.answer" class="x-mark">✗</span>
+                <span v-if="showResult && isOptionCorrect(key, currentQuestion)" class="check-mark">✓</span>
+                <span v-if="showResult && isOptionWrong(key, currentQuestion)" class="x-mark">✗</span>
               </label>
             </div>
 
@@ -284,6 +284,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { getExamDetail, submitExam as submitExamApi, saveProgress as saveProgressApi } from '@/api/student'
+import { ElMessage } from 'element-plus'
 import AIAnswerModal from '@/components/AIAnswerModal.vue'
 
 const route = useRoute()
@@ -364,12 +365,88 @@ const parsedOptions = computed(() => {
   }
 })
 
+// ========== 答案标准化（确保 answer 与选项 key 格式一致，使正确/错误框选生效）==========
+function normalizeQuestionAnswers() {
+  questions.value = questions.value.map(q => {
+    if (!q.question_type) return q
+    // 判断题：统一为 'true' / 'false'（与模板中的比较值一致）
+    if (q.question_type === 'true_false') {
+      const ans = String(q.answer || '').trim()
+      const trueVals = ['A', '正确', 'true', 'True', '对', '是', '1']
+      const falseVals = ['B', '错误', 'false', 'False', '错', '否', '0']
+      if (trueVals.includes(ans)) return { ...q, answer: 'true' }
+      if (falseVals.includes(ans)) return { ...q, answer: 'false' }
+      return q
+    }
+    // 选择题：确保 answer 与 parsedOptions 的 key 一致
+    if (q.question_type === 'choice' || q.question_type === 'multiple_choice') {
+      let opts = {}
+      if (q.options) {
+        if (typeof q.options === 'object') { opts = q.options }
+        else { try { opts = JSON.parse(q.options) } catch { opts = {} } }
+      }
+      const keys = Object.keys(opts)
+      if (keys.length === 0) return q
+      const ans = String(q.answer || '').trim()
+      if (!ans) return q
+
+      // 统一处理：将 answer 按逗号拆分，逐个标准化，再拼接
+      const normalizeSingleKey = (v) => {
+        const sv = v.trim()
+        if (!sv) return sv
+        if (keys.includes(sv)) return sv
+        const svNoDot = sv.replace(/\.$/, '')
+        if (keys.includes(svNoDot)) return svNoDot
+        const matched = keys.find(k => k.toUpperCase() === sv.toUpperCase() || k.toUpperCase().replace(/\.$/, '') === sv.toUpperCase())
+        if (matched) return matched
+        if (/^\d+$/.test(sv)) {
+          const idx = parseInt(sv) - 1
+          if (idx >= 0 && idx < keys.length) return keys[idx]
+        }
+        return sv
+      }
+
+      const parts = ans.split(',').map(normalizeSingleKey).filter(Boolean)
+      if (parts.length === 0) return q
+      const normalizedAnswer = parts.join(',')
+      if (normalizedAnswer !== ans) {
+        return { ...q, answer: normalizedAnswer }
+      }
+    }
+    return q
+  })
+}
+
 function isChoiceType(type) {
   return type === 'choice' || type === 'multiple_choice'
 }
 
+function isMultiType(type) {
+  return type === 'multiple_choice'
+}
+
 function isTextType(type) {
   return type === 'fill_blank' || type === 'essay'
+}
+
+// 判断某个选项 key 是否是正确答案（适配单选和多选）
+function isOptionCorrect(key, question) {
+  if (!question || !question.answer) return false
+  if (isMultiType(question.question_type)) {
+    return String(question.answer).split(',').map(s => s.trim()).includes(key)
+  }
+  return key === question.answer
+}
+
+// 判断某个选项 key 是否是用户选错的答案（用户选了但非正确答案）
+function isOptionWrong(key, question) {
+  if (!question || !question.answer) return false
+  if (isMultiType(question.question_type)) {
+    const studentAnswers = selectedAnswers.value
+    const correctAnswers = String(question.answer).split(',').map(s => s.trim())
+    return studentAnswers.includes(key) && !correctAnswers.includes(key)
+  }
+  return selectedAnswer.value === key && key !== question.answer
 }
 
 function typeLabel(type) {
@@ -402,14 +479,23 @@ function saveResultToStorage() {
     showResult: showResult.value,
     showResultModal: showResultModal.value,
     score: score.value,
-    correctCount: correctCount.value
+    correctCount: correctCount.value,
+    submitReason: submitReason.value
   }))
+  // 同时保存 questions 中的答案和解析，防止刷新后丢失
+  const questionsData = questions.value.map(q => ({
+    id: q.id,
+    answer: q.answer,
+    analysis: q.analysis || ''
+  }))
+  localStorage.setItem('exam_questions_data_' + examId, JSON.stringify(questionsData))
 }
 
 function clearExamStorage() {
   localStorage.removeItem(TIMER_KEY)
   localStorage.removeItem(ANSWERS_KEY)
   localStorage.removeItem(RESULT_KEY)
+  localStorage.removeItem('exam_questions_data_' + examId)
 }
 
 function startTimer() {
@@ -482,16 +568,17 @@ async function confirmSubmit() {
     const data = res.data || {}
     score.value = data.score || 0
     correctCount.value = data.correct || 0
-    if (data.details) {
+    if (data.details && data.details.length > 0) {
       questions.value = questions.value.map(q => {
         const detail = data.details.find(d => d.question_id === q.id)
         if (detail) {
-          return { ...q, answer: detail.correct_answer, analysis: detail.explanation || '' }
+          return { ...q, answer: detail.correct_answer || q.answer || '', analysis: detail.explanation || '' }
         }
         return q
       })
     }
     showResult.value = true
+    normalizeQuestionAnswers()
     clearExamStorage()
     saveResultToStorage()
     saveAnswersToStorage()
@@ -559,44 +646,103 @@ function reviewAnswers() {
 }
 
 function handleTabSwitch() {
-  if (document.hidden && examRecordId.value) {
-    fetch('/api/student/api/report_tab_switch/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ exam_record_id: examRecordId.value })
-    })
-    .then(res => res.json())
-    .then(async data => {
-      if (data.force_submit) {
-        // 第3次切屏：强制交卷，后端已在 report_tab_switch 中自动提交并返回评分结果
-        examSubmitted.value = true
-        examOngoing.value = false
-        submitReason.value = 'tab_switch'
-        score.value = data.score || 0
-        correctCount.value = data.correct || 0
-        if (data.details) {
-          questions.value = questions.value.map(q => {
-            const detail = data.details.find(d => d.question_id === q.id)
-            if (detail) {
-              return { ...q, answer: detail.correct_answer, analysis: detail.explanation || '' }
-            }
-            return q
-          })
-        }
-        showResult.value = true
-        showResultModal.value = true
-        clearInterval(timerInterval)
-        clearExamStorage()
-        saveResultToStorage()
-        saveAnswersToStorage()
-      } else if (data.warning) {
-        // 第1次或第2次切屏：显示提醒弹窗
-        tabSwitchCount.value = data.switch_count || (tabSwitchCount.value + 1)
-        tabModalMessage.value = '已切屏离开 ' + tabSwitchCount.value + ' 次，累计切屏三次试卷将自动提交。请保持在考试页面内作答！'
+  if (!document.hidden || !examRecordId.value) return
+
+  // 先关闭可能存在的旧弹窗，防止多个弹窗叠加
+  showTabModal.value = false
+
+  // 本地先计数，防止后端响应异常导致计数丢失
+  tabSwitchCount.value += 1
+  const localCount = tabSwitchCount.value
+
+  // 如果本地已累计3次，直接触发强制交卷（兜底逻辑）
+  if (localCount >= 3) {
+    forceSubmitByTabSwitch()
+    return
+  }
+
+  // 向后端上报切屏
+  fetch('/api/student/api/report_tab_switch/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ exam_record_id: examRecordId.value })
+  })
+  .then(res => res.json())
+  .then(async data => {
+    if (data.force_submit) {
+      // 后端要求强制交卷（可能后端计数的第3次）
+      tabSwitchCount.value = Math.max(localCount, data.switch_count || 3)
+      forceSubmitByTabSwitch()
+    } else if (data.warning || data.switch_count) {
+      // 后端返回警告（第1/2次切屏）
+      tabSwitchCount.value = Math.max(localCount, data.switch_count || localCount)
+      tabModalMessage.value = '已切屏离开 ' + tabSwitchCount.value + ' 次，累计切屏三次试卷将自动提交。请保持在考试页面内作答！'
+      showTabModal.value = true
+    } else {
+      // 后端返回了非预期格式（如 session 相关数据），使用本地计数
+      if (localCount < 3) {
+        tabModalMessage.value = '已切屏离开 ' + localCount + ' 次，累计切屏三次试卷将自动提交。请保持在考试页面内作答！'
         showTabModal.value = true
       }
-    })
+    }
+  })
+  .catch(() => {
+    // 请求失败时使用本地计数
+    if (localCount < 3) {
+      tabModalMessage.value = '已切屏离开 ' + localCount + ' 次，累计切屏三次试卷将自动提交。请保持在考试页面内作答！'
+      showTabModal.value = true
+    } else {
+      forceSubmitByTabSwitch()
+    }
+  })
+}
+
+// 切屏强制交卷（提取为独立函数，供 handleTabSwitch 多处调用）
+async function forceSubmitByTabSwitch() {
+  showTabModal.value = false
+  examSubmitted.value = true
+  examOngoing.value = false
+  submitReason.value = 'tab_switch'
+  clearInterval(timerInterval)
+
+  // 弹出 loading 态的成绩弹窗
+  showResultModal.value = true
+  resultLoading.value = true
+
+  try {
+    // 尝试调用提交接口获取成绩和解析
+    const answerList = questions.value.map(q => ({
+      question_id: q.id,
+      answer: answers.value[q.id] || ''
+    }))
+    const res = await submitExamApi(examId, answerList, examRecordId.value)
+    const data = res.data || {}
+    score.value = data.score || 0
+    correctCount.value = data.correct || 0
+    if (data.details && data.details.length > 0) {
+      questions.value = questions.value.map(q => {
+        const detail = data.details.find(d => d.question_id === q.id)
+        if (detail) {
+          return { ...q, answer: detail.correct_answer || q.answer || '', analysis: detail.explanation || '' }
+        }
+        return q
+      })
+    }
+    showResult.value = true
+    normalizeQuestionAnswers()
+  } catch {
+    // 提交失败：仍然显示成绩弹窗，但分数为0，答案用原始数据
+    score.value = 0
+    correctCount.value = 0
+    showResult.value = true
+    normalizeQuestionAnswers()
+  } finally {
+    resultLoading.value = false
   }
+
+  clearExamStorage()
+  saveResultToStorage()
+  saveAnswersToStorage()
 }
 
 function openAIQuestion(question) {
@@ -620,6 +766,7 @@ async function loadExam() {
         showResultModal.value = r.showResultModal
         score.value = r.score
         correctCount.value = r.correctCount
+        submitReason.value = r.submitReason || ''
         if (savedAnswers) answers.value = JSON.parse(savedAnswers)
       }
     } catch { /* 忽略恢复失败 */ }
@@ -629,9 +776,29 @@ async function loadExam() {
     const res = await getExamDetail(examId)
     examInfo.value = res.data?.exam || res.data
     questions.value = res.data?.questions || []
+    // 如果之前有提交结果，恢复 questions 中的正确答案和解析
+    if (showResult.value) {
+      const savedQuestionsData = localStorage.getItem('exam_questions_data_' + examId)
+      if (savedQuestionsData) {
+        try {
+          const qData = JSON.parse(savedQuestionsData)
+          const qMap = {}
+          qData.forEach(q => { qMap[q.id] = q })
+          questions.value = questions.value.map(q => {
+            const saved = qMap[q.id]
+            if (saved) {
+              return { ...q, answer: saved.answer || q.answer, analysis: saved.analysis || q.analysis || '' }
+            }
+            return q
+          })
+        } catch { /* 忽略恢复失败 */ }
+      }
+    }
     if (examInfo.value?.duration) {
       remainingSeconds.value = examInfo.value.duration * 60
     }
+    // 标准化答案格式，确保与选项 key 一致（使正确/错误框选生效）
+    normalizeQuestionAnswers()
   } catch (err) {
     error.value = '加载试卷失败：' + (err.response?.data?.error || '网络错误')
   }
@@ -709,9 +876,54 @@ function handleBeforeUnload() {
   }
 }
 
+// 禁止复制粘贴
+let lastTipTime = 0
+function showTip() {
+  const now = Date.now()
+  if (now - lastTipTime > 2000) {
+    lastTipTime = now
+    ElMessage({ message: '考试中不支持复制粘贴', type: 'warning', duration: 1500 })
+  }
+}
+
+function disableCopyPaste(event) {
+  event.preventDefault()
+  showTip()
+  return false
+}
+
+// 禁止右键菜单
+function disableRightClick(event) {
+  event.preventDefault()
+  showTip()
+  return false
+}
+
+// 禁止选中文本
+function disableSelect(event) {
+  event.preventDefault()
+  return false
+}
+
+// 禁止快捷键 Ctrl+C/V/X/A
+function disableShortcuts(e) {
+  if (e.ctrlKey && (e.key === 'c' || e.key === 'v' || e.key === 'x' || e.key === 'a')) {
+    e.preventDefault()
+    showTip()
+    return false
+  }
+}
+
 onMounted(() => {
   loadExam()
   window.addEventListener('beforeunload', handleBeforeUnload)
+  // 考试开始时禁用复制粘贴、右键、选中
+  document.addEventListener('copy', disableCopyPaste)
+  document.addEventListener('paste', disableCopyPaste)
+  document.addEventListener('cut', disableCopyPaste)
+  document.addEventListener('keydown', disableShortcuts)
+  document.addEventListener('contextmenu', disableRightClick)
+  document.addEventListener('selectstart', disableSelect)
 })
 
 onBeforeUnmount(() => {
@@ -720,6 +932,12 @@ onBeforeUnmount(() => {
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
   document.removeEventListener('visibilitychange', handleTabSwitch)
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  document.removeEventListener('copy', disableCopyPaste)
+  document.removeEventListener('paste', disableCopyPaste)
+  document.removeEventListener('cut', disableCopyPaste)
+  document.removeEventListener('keydown', disableShortcuts)
+  document.removeEventListener('contextmenu', disableRightClick)
+  document.removeEventListener('selectstart', disableSelect)
 })
 </script>
 
